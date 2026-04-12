@@ -1,32 +1,18 @@
 /**
- * 섹션별 렌더링 및 이벤�� 핸들링
+ * 섹션별 렌더링 및 이벤트 핸들링
  */
 
 // =============================================
-// ① 기인물 체크 리스트 (A7) — 필터 + 정렬
+// ① 기인물 체크 리스트 (A7) — 작업분류별 그룹
 // =============================================
 const SectionHazard = (() => {
   let currentFilter = '전체';
   let currentSearch = '';
-  let sortCol = '위험도순위';
-  let sortAsc = true;
+  let collapsedGroups = new Set();
 
-  // 작업분류별 필터 매핑
-  const FILTER_MAP = {
-    '전체': () => true,
-    '고소작업': h => h.고소감전여부 === '고소',
-    '정전작업': h => h.고소감전여부 === '감전',
-    '굴착작업': h => h.중장비여부 === '굴착',
-    '중장비작업': h => h.중장비여부 === '중장비',
-    '12대기인물': h => h.구분 === '12대기인물',
-    '선택됨': h => h.checked,
-  };
-
-  function getFiltered() {
+  function getGrouped() {
     let hazards = Store.get('hazards');
-    // 필터
-    const filterFn = FILTER_MAP[currentFilter] || FILTER_MAP['전체'];
-    hazards = hazards.filter(filterFn);
+
     // 검색
     if (currentSearch) {
       const q = currentSearch.toLowerCase();
@@ -36,56 +22,106 @@ const SectionHazard = (() => {
         h.다빈도_재해형태.toLowerCase().includes(q)
       );
     }
-    // 정렬
-    hazards.sort((a, b) => {
-      let va = a[sortCol], vb = b[sortCol];
-      if (typeof va === 'string') {
-        return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-      }
-      return sortAsc ? va - vb : vb - va;
+
+    // 필터
+    if (currentFilter === '선택됨') {
+      hazards = hazards.filter(h => h.checked);
+    } else if (currentFilter !== '전체') {
+      hazards = hazards.filter(h => h.작업분류 === currentFilter);
+    }
+
+    // 작업분류별 그룹화
+    const groups = {};
+    WORK_TYPE_ORDER.forEach(wt => { groups[wt] = []; });
+    hazards.forEach(h => {
+      const cat = h.작업분류 || '일반작업';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(h);
     });
-    return hazards;
+    // 각 그룹 내 다빈도순 정렬 (사고건수 내림차순)
+    Object.values(groups).forEach(arr => arr.sort((a, b) => b.총사고건수 - a.총사고건수));
+    return groups;
   }
 
   function render() {
-    const filtered = getFiltered();
+    const groups = getGrouped();
     const allHazards = Store.get('hazards');
-    const tbody = document.getElementById('hazardTableBody');
+    const container = document.getElementById('hazardGroupContainer');
 
-    tbody.innerHTML = filtered.map(h => {
-      const origIdx = allHazards.indexOf(h);
-      return `
-        <tr class="border-b border-gray-100 hover:bg-gray-50 ${h.checked ? 'bg-yellow-50' : ''} ${h.구분 === '12대기인물' ? 'font-medium' : ''}">
-          <td class="px-2 py-1.5 text-center text-gray-400">${h.순번}</td>
-          <td class="px-2 py-1.5 font-medium">${h.기인물}</td>
-          <td class="px-2 py-1.5 text-gray-500">${h.기인물분류}</td>
-          <td class="px-2 py-1.5 text-center">
-            ${h.구분 === '12대기인��'
-              ? '<span class="px-1.5 py-0.5 bg-red-100 text-risk-vh text-[10px] rounded font-bold">12대</span>'
-              : '<span class="text-gray-400 text-[10px]">-</span>'}
-          </td>
-          <td class="px-2 py-1.5 text-center font-mono">${h.총사고건수}</td>
-          <td class="px-2 py-1.5 text-center text-gray-500">${h.위험도순위}위</td>
-          <td class="px-2 py-1.5 text-center">
-            <select onchange="SectionHazard.toggle(${origIdx}, this.value)"
-              class="text-xs border rounded px-1 py-0.5 ${h.checked ? 'bg-cell-hit font-bold' : 'bg-white'}">
-              <option value="미해당" ${!h.checked ? 'selected' : ''}>미해당</option>
-              <option value="해당" ${h.checked ? 'selected' : ''}>해당</option>
-            </select>
-          </td>
-          <td class="px-2 py-1.5 text-center text-[10px]">${h.중장비여부 || '-'}</td>
-          <td class="px-2 py-1.5 text-center text-[10px]">${h.고소감전여부 || '-'}</td>
-          <td class="px-2 py-1.5">
-            <span class="text-[10px]">${h.다빈도_재해형태}</span>
-            <span class="text-[10px] text-gray-400 ml-1">${(h.다빈도_재해형태비율 * 100).toFixed(1)}%</span>
-          </td>
-        </tr>
+    let html = '';
+    WORK_TYPE_ORDER.forEach(wt => {
+      const items = groups[wt];
+      if (!items || items.length === 0) return;
+      const colors = WORK_TYPE_COLORS[wt] || WORK_TYPE_COLORS['일반작업'];
+      const isCollapsed = collapsedGroups.has(wt);
+      const checkedCount = items.filter(h => h.checked).length;
+      const totalAccidents = items.reduce((s, h) => s + h.총사고건수, 0);
+
+      html += `
+        <div class="mb-3 border ${colors.border} rounded-lg overflow-hidden">
+          <div class="flex items-center justify-between px-3 py-2 ${colors.bg} cursor-pointer select-none"
+            onclick="SectionHazard.toggleGroup('${wt}')">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold ${colors.text}">${isCollapsed ? '&#9654;' : '&#9660;'}</span>
+              <span class="font-bold text-sm ${colors.text}">${wt}</span>
+              <span class="text-[10px] text-gray-500">${items.length}개 기인물 | 총 ${totalAccidents.toLocaleString()}건</span>
+              ${checkedCount > 0 ? `<span class="px-1.5 py-0.5 bg-cell-hit text-risk-vh text-[10px] rounded font-bold">${checkedCount}개 선택</span>` : ''}
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="event.stopPropagation(); SectionHazard.toggleGroupAll('${wt}', true)"
+                class="text-[10px] px-2 py-0.5 bg-white/70 hover:bg-white rounded border">전체선택</button>
+              <button onclick="event.stopPropagation(); SectionHazard.toggleGroupAll('${wt}', false)"
+                class="text-[10px] px-2 py-0.5 bg-white/70 hover:bg-white rounded border">해제</button>
+            </div>
+          </div>
+          ${isCollapsed ? '' : `
+            <table class="w-full text-xs border-collapse">
+              <thead class="bg-header-navy text-white">
+                <tr>
+                  <th class="px-2 py-1.5 text-center w-10">순번</th>
+                  <th class="px-2 py-1.5 text-left">기인물</th>
+                  <th class="px-2 py-1.5 text-center w-16">사고건수</th>
+                  <th class="px-2 py-1.5 text-center w-12">순위</th>
+                  <th class="px-2 py-1.5 text-center w-16">체크</th>
+                  <th class="px-2 py-1.5 text-left">다빈도 재해형태</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map(h => {
+                  const origIdx = allHazards.indexOf(h);
+                  return `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 ${h.checked ? 'bg-yellow-50' : ''} ${h.구분 === '12대기인물' ? 'font-medium' : ''}">
+                      <td class="px-2 py-1.5 text-center text-gray-400">${h.순번}</td>
+                      <td class="px-2 py-1.5 font-medium">
+                        ${h.기인물}
+                        ${h.구분 === '12대기인물' ? ' <span class="px-1 py-0.5 bg-red-100 text-risk-vh text-[9px] rounded font-bold">12대</span>' : ''}
+                      </td>
+                      <td class="px-2 py-1.5 text-center font-mono">${h.총사고건수}</td>
+                      <td class="px-2 py-1.5 text-center text-gray-500">${h.위험도순위}위</td>
+                      <td class="px-2 py-1.5 text-center">
+                        <select onchange="SectionHazard.toggle(${origIdx}, this.value)"
+                          class="text-xs border rounded px-1 py-0.5 ${h.checked ? 'bg-cell-hit font-bold' : 'bg-white'}">
+                          <option value="미해당" ${!h.checked ? 'selected' : ''}>미해당</option>
+                          <option value="해당" ${h.checked ? 'selected' : ''}>해당</option>
+                        </select>
+                      </td>
+                      <td class="px-2 py-1.5">
+                        <span class="text-[10px]">${h.다빈도_재해형태}</span>
+                        <span class="text-[10px] text-gray-400 ml-1">${(h.다빈도_재해형태비율 * 100).toFixed(1)}%</span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
       `;
-    }).join('');
+    });
 
+    container.innerHTML = html;
     updateCount();
     updateSifSummary();
-    updateSortIcons();
     updateFilterTabs();
   }
 
@@ -97,11 +133,28 @@ const SectionHazard = (() => {
 
   function toggleAll(checked) {
     const hazards = Store.get('hazards');
-    // 현재 필터에 해당하는 것만 토글
-    const filterFn = FILTER_MAP[currentFilter] || FILTER_MAP['전체'];
-    hazards.forEach(h => {
-      if (filterFn(h)) h.checked = checked;
-    });
+    if (currentFilter === '전체') {
+      hazards.forEach(h => { h.checked = checked; });
+    } else if (currentFilter === '선택됨') {
+      hazards.filter(h => h.checked).forEach(h => { h.checked = checked; });
+    } else {
+      hazards.filter(h => h.작업분류 === currentFilter).forEach(h => { h.checked = checked; });
+    }
+    Store.set('hazards', [...hazards]);
+  }
+
+  function toggleGroup(wt) {
+    if (collapsedGroups.has(wt)) {
+      collapsedGroups.delete(wt);
+    } else {
+      collapsedGroups.add(wt);
+    }
+    render();
+  }
+
+  function toggleGroupAll(wt, checked) {
+    const hazards = Store.get('hazards');
+    hazards.filter(h => h.작업분류 === wt).forEach(h => { h.checked = checked; });
     Store.set('hazards', [...hazards]);
   }
 
@@ -115,29 +168,9 @@ const SectionHazard = (() => {
     render();
   }
 
-  function sort(col) {
-    if (sortCol === col) {
-      sortAsc = !sortAsc;
-    } else {
-      sortCol = col;
-      sortAsc = col === '위험도순위' || col === '총사고건수' ? true : true;
-    }
-    render();
-  }
-
   function updateCount() {
     const count = Store.getSelectedHazards().length;
     document.getElementById('hazardCount').textContent = count;
-  }
-
-  function updateSortIcons() {
-    document.querySelectorAll('.sort-icon').forEach(el => {
-      if (el.dataset.col === sortCol) {
-        el.textContent = sortAsc ? ' ▲' : ' ▼';
-      } else {
-        el.textContent = '';
-      }
-    });
   }
 
   function updateFilterTabs() {
@@ -160,9 +193,8 @@ const SectionHazard = (() => {
       return;
     }
     const totalAccidents = selected.reduce((sum, h) => sum + h.총사고건수, 0);
-    const top12Count = selected.filter(h => h.구분 === '12대기인���').length;
+    const top12Count = selected.filter(h => h.구분 === '12대기인물').length;
 
-    // 재해형태 집계
     const typeMap = {};
     selected.forEach(h => {
       typeMap[h.다빈도_재해형태] = (typeMap[h.다빈도_재해형태] || 0) + h.총사고건수;
@@ -185,7 +217,7 @@ const SectionHazard = (() => {
     `;
   }
 
-  return { render, toggle, toggleAll, setFilter, setSearch, sort };
+  return { render, toggle, toggleAll, toggleGroup, toggleGroupAll, setFilter, setSearch };
 })();
 
 
@@ -430,7 +462,6 @@ const SectionAssessment = (() => {
     const processes = Store.get('processes');
     const stageOptions = processes.map(p => p.stage).filter(Boolean);
 
-    // 공정별 기인물 매핑
     const stageHazardMap = {};
     processes.forEach(p => {
       if (p.stage) stageHazardMap[p.stage] = p.hazards || [];
@@ -446,7 +477,6 @@ const SectionAssessment = (() => {
       const riskAfter = (r.freqAfter || 0) * (r.sevAfter || 0);
       const gradeBefore = Store.getRiskGrade(riskBefore);
       const gradeAfter = Store.getRiskGrade(riskAfter);
-      // 해당 공정의 기인물 목록
       const stageHazards = stageHazardMap[r.stage] || [];
       const hasHazard = stageHazards.length > 0 || r.기인물;
 
@@ -490,7 +520,7 @@ const SectionAssessment = (() => {
             <select onchange="SectionAssessment.update(${i}, 'freqBefore', +this.value)"
               class="input-yellow border rounded px-0.5 py-0.5 text-xs w-10">
               <option value="0">-</option>
-              ${[1,2,3,4,5].map(v => `<option value="${v}" ${r.freqBefore === v ? 'selected' : ''}>${v}</option>`).join('')}
+              ${[1,2,3,4].map(v => `<option value="${v}" ${r.freqBefore === v ? 'selected' : ''}>${v}</option>`).join('')}
             </select>
           </td>
           <td class="px-2 py-1 text-center">
@@ -507,7 +537,7 @@ const SectionAssessment = (() => {
             <select onchange="SectionAssessment.update(${i}, 'freqAfter', +this.value)"
               class="border rounded px-0.5 py-0.5 text-xs w-10 text-blue-600 font-medium">
               <option value="0">-</option>
-              ${[1,2,3,4,5].map(v => `<option value="${v}" ${r.freqAfter === v ? 'selected' : ''}>${v}</option>`).join('')}
+              ${[1,2,3,4].map(v => `<option value="${v}" ${r.freqAfter === v ? 'selected' : ''}>${v}</option>`).join('')}
             </select>
           </td>
           <td class="px-2 py-1 text-center">
@@ -560,12 +590,11 @@ const SectionAssessment = (() => {
     rows[index].riskAfter = (rows[index].freqAfter || 0) * (rows[index].sevAfter || 0);
 
     if (field === 'freqBefore' || field === 'sevBefore') {
-      rows[index].tbmChk = rows[index].riskBefore >= 9;
+      rows[index].tbmChk = rows[index].riskBefore >= 8;
     }
 
     if (field === 'stage' && value) {
       rows[index].no = nextNo(rows.filter((_, j) => j !== index), value);
-      // 공정 기인물 자동 매핑
       const proc = Store.get('processes').find(p => p.stage === value);
       if (proc && proc.hazards && proc.hazards.length > 0 && !rows[index].기인물) {
         rows[index].기인물 = proc.hazards[0];
@@ -590,7 +619,7 @@ const SectionAssessment = (() => {
 // =============================================
 const SifPopup = (() => {
   let targetRowIndex = -1;
-  let targetField = ''; // 'hazard' or 'safety'
+  let targetField = '';
   let selectedItems = new Set();
   let currentTab = 'cases';
   let currentHazardName = '';
@@ -601,7 +630,6 @@ const SifPopup = (() => {
     selectedItems.clear();
     currentTab = field === 'safety' ? 'safety' : (field === 'hazard' ? 'hazards' : 'cases');
 
-    // 해당 행의 기인물 결정
     const rows = Store.get('rows');
     const row = rows[rowIndex];
     if (row.기인물) {
@@ -633,7 +661,6 @@ const SifPopup = (() => {
     currentTab = tab;
     selectedItems.clear();
 
-    // 탭 스타일
     document.querySelectorAll('.sif-tab').forEach(el => {
       if (el.dataset.tab === tab) {
         el.classList.add('border-b-2', 'border-risk-vh', 'text-risk-vh');
@@ -658,7 +685,6 @@ const SifPopup = (() => {
   }
 
   function renderCases(container) {
-    // 선택된 모든 기인물의 사고사례 표시
     const selectedHazards = Store.getSelectedHazards();
     const hazardNames = currentHazardName ? [currentHazardName] : selectedHazards.map(h => h.기인물);
 
@@ -672,7 +698,6 @@ const SifPopup = (() => {
       return;
     }
 
-    // 기인물 탭 (여러 기인물일 경우)
     const uniqueHazards = [...new Set(allCases.map(c => c.기인물))];
     let hazardFilter = '';
     if (uniqueHazards.length > 1) {
@@ -780,7 +805,6 @@ const SifPopup = (() => {
     `;
   }
 
-  // 내부 메서드 (onclick에서 호출)
   const _textMap = {};
 
   function _toggleItem(key, checked, hazardText, safetyText) {
@@ -834,7 +858,6 @@ const SifPopup = (() => {
     const row = rows[targetRowIndex];
 
     if (currentTab === 'cases') {
-      // 사고사례에서 선택 → 유해위험요인 + 안전조치 모두 채움
       const texts = { hazards: [], safeties: [] };
       selectedItems.forEach(key => {
         const data = _textMap[key];
@@ -890,8 +913,8 @@ const SectionAnalysis = (() => {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">위험성평가 데이터를 입력하면 자동 집계됩니다.</td></tr>';
     } else {
       tbody.innerHTML = analysis.map(s => `
-        <tr class="border-b border-gray-100 ${s.avgBefore >= 9 ? 'bg-red-50' : ''}">
-          <td class="px-3 py-2 font-medium">${s.avgBefore >= 9 ? '<span class="text-risk-vh mr-1">&#9679;</span>' : ''}${s.name}</td>
+        <tr class="border-b border-gray-100 ${s.avgBefore >= 8 ? 'bg-red-50' : ''}">
+          <td class="px-3 py-2 font-medium">${s.avgBefore >= 8 ? '<span class="text-risk-vh mr-1">&#9679;</span>' : ''}${s.name}</td>
           <td class="px-3 py-2 text-center">${s.total}건</td>
           <td class="px-3 py-2 text-center font-bold ${s.highCount > 0 ? 'text-risk-vh' : ''}">${s.highCount}건</td>
           <td class="px-3 py-2 text-center font-mono">${s.avgBefore}</td>
@@ -917,7 +940,7 @@ const SectionAnalysis = (() => {
     const analysis = Store.getStageAnalysis();
     const totalStages = analysis.length;
     const totalHazards = rows.length;
-    const highStages = analysis.filter(s => s.avgBefore >= 9).length;
+    const highStages = analysis.filter(s => s.avgBefore >= 8).length;
     const highRate = totalStages > 0 ? (highStages / totalStages * 100).toFixed(1) : 0;
     const risksBefore = rows.map(r => r.riskBefore).filter(v => v > 0);
     const risksAfter = rows.map(r => r.riskAfter).filter(v => v > 0);
@@ -938,7 +961,6 @@ const SectionAnalysis = (() => {
     const analysis = Store.getStageAnalysis();
     if (analysis.length === 0) return;
 
-    // 차트 2: 수평 막대
     const ctxH = document.getElementById('chart-horizontal-bar');
     if (chartH) chartH.destroy();
     chartH = new Chart(ctxH, {
@@ -947,7 +969,7 @@ const SectionAnalysis = (() => {
         labels: analysis.map(s => s.name),
         datasets: [
           { label: '전체 위험요인', data: analysis.map(s => s.total), backgroundColor: '#BDD7EE', borderRadius: 4 },
-          { label: '고위험(>=9)', data: analysis.map(s => s.highCount), backgroundColor: '#C00000', borderRadius: 4 },
+          { label: '고위험(>=8)', data: analysis.map(s => s.highCount), backgroundColor: '#C00000', borderRadius: 4 },
         ],
       },
       options: {
@@ -958,7 +980,6 @@ const SectionAnalysis = (() => {
       },
     });
 
-    // 차트 3: 수직 막대
     const ctxV = document.getElementById('chart-vertical-bar');
     if (chartV) chartV.destroy();
     chartV = new Chart(ctxV, {
@@ -970,7 +991,7 @@ const SectionAnalysis = (() => {
             label: '개선 전',
             data: analysis.map(s => s.avgBefore),
             backgroundColor: analysis.map(s =>
-              s.avgBefore >= 13 ? '#C00000' : s.avgBefore >= 9 ? '#E26B0A' : s.avgBefore >= 4 ? '#FFC000' : '#375623'
+              s.avgBefore >= 12 ? '#C00000' : s.avgBefore >= 8 ? '#E26B0A' : s.avgBefore >= 4 ? '#FFC000' : '#375623'
             ),
             borderRadius: 4,
           },
@@ -980,11 +1001,10 @@ const SectionAnalysis = (() => {
       options: {
         responsive: true,
         plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
-        scales: { y: { beginAtZero: true, max: 25, ticks: { stepSize: 3 } } },
+        scales: { y: { beginAtZero: true, max: 20, ticks: { stepSize: 2 } } },
       },
     });
 
-    // 차트 4: 도넛
     renderDonut('chart-donut-before', Store.getRiskDistribution('before'), '개선 전');
     renderDonut('chart-donut-after', Store.getRiskDistribution('after'), '개선 후');
   }
@@ -1012,7 +1032,7 @@ const SectionAnalysis = (() => {
   function renderHighRiskPanel() {
     const analysis = Store.getStageAnalysis();
     const rows = Store.get('rows');
-    const highRisk = analysis.filter(s => s.avgBefore >= 9).sort((a, b) => b.avgBefore - a.avgBefore);
+    const highRisk = analysis.filter(s => s.avgBefore >= 8).sort((a, b) => b.avgBefore - a.avgBefore);
     const panel = document.getElementById('highRiskList');
 
     if (highRisk.length === 0) {
@@ -1048,7 +1068,6 @@ const SectionAnalysis = (() => {
 // ⑨ TBM 일지 (1면 + 2면)
 // =============================================
 const SectionTBM = (() => {
-  // 체크리스트 8문항
   const CHECKLIST_ITEMS = [
     { id: 'q1', text: '작업 전 안전교육을 실시하였는가?' },
     { id: 'q2', text: '개인보호구를 정확히 착용하였는가?' },
@@ -1068,7 +1087,6 @@ const SectionTBM = (() => {
     renderTbmFields();
   }
 
-  /** TBM 작업정보 (O7 자동 승계) */
   function renderWorkInfo() {
     const ov = Store.get('overview');
     const members = Store.get('members').filter(m => m.name);
@@ -1084,7 +1102,6 @@ const SectionTBM = (() => {
     document.getElementById('tbm-permit').textContent = Store.getWorkTypeText() || '-';
   }
 
-  /** 위험예지활동 표 (AB7 TBM 체크 자동 반영) */
   function renderRiskItems() {
     const tbmItems = Store.getTbmRiskItems();
     const tbody = document.getElementById('tbmRiskTableBody');
@@ -1110,7 +1127,6 @@ const SectionTBM = (() => {
     }).join('');
   }
 
-  /** 점검 Check List 8문항 */
   function renderChecklist() {
     const tbm = Store.get('tbm');
     const container = document.getElementById('tbmChecklist');
@@ -1130,7 +1146,6 @@ const SectionTBM = (() => {
     }).join('');
   }
 
-  /** 참석자 및 건강상태 확인 (H20 자동 반영) */
   function renderAttendees() {
     const members = Store.get('members').filter(m => m.name && m.affiliation);
     const tbm = Store.get('tbm');
@@ -1192,7 +1207,6 @@ const SectionTBM = (() => {
     }).join('');
   }
 
-  /** TBM 2면 필드 복원 */
   function renderTbmFields() {
     const tbm = Store.get('tbm');
     const el = (id) => document.getElementById(id);
@@ -1213,8 +1227,6 @@ const SectionTBM = (() => {
       if (el('tbm-contractor-deliverer')) el('tbm-contractor-deliverer').value = tbm.contractorMessage.deliverer || '';
     }
   }
-
-  // === 이벤트 핸들러 ===
 
   function updateField(field, value) {
     Store.merge('tbm', { [field]: value });

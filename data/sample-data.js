@@ -104,7 +104,7 @@ function loadSampleData() {
     ...r,
     riskBefore: r.freqBefore * r.sevBefore,
     riskAfter: r.freqAfter * r.sevAfter,
-    tbmChk: (r.freqBefore * r.sevBefore) >= 9,
+    tbmChk: (r.freqBefore * r.sevBefore) >= 8,
   })));
 
   App.showToast('샘플 데이터(배전반 교체 공사) 로드 완료!\n18개 위험요인, 7개 공정, 6명 참여자', 'success');

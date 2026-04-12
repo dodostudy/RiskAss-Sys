@@ -220,11 +220,14 @@
         <!-- 작업분류별 필터 탭 -->
         <div class="mb-3 flex flex-wrap gap-1.5">
           <button onclick="SectionHazard.setFilter('전체')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition bg-header-navy text-white" data-filter="전체">전체 (58)</button>
+          <button onclick="SectionHazard.setFilter('일반작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="일반작업">일반작업</button>
+          <button onclick="SectionHazard.setFilter('화기작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="화기작업">화기작업</button>
+          <button onclick="SectionHazard.setFilter('밀폐작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="밀폐작업">밀폐작업</button>
           <button onclick="SectionHazard.setFilter('고소작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="고소작업">고소작업</button>
           <button onclick="SectionHazard.setFilter('정전작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="정전작업">정전작업</button>
           <button onclick="SectionHazard.setFilter('굴착작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="굴착작업">굴착작업</button>
           <button onclick="SectionHazard.setFilter('중장비작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="중장비작업">중장비작업</button>
-          <button onclick="SectionHazard.setFilter('12대기인물')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="12대기인물">12대 기인물</button>
+          <button onclick="SectionHazard.setFilter('중량물작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="중량물작업">중량물작업</button>
           <button onclick="SectionHazard.setFilter('선택됨')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="선택됨">선택됨</button>
           <input type="text" id="hazardSearch" placeholder="기인물 검색..."
             class="ml-2 px-3 py-1 text-xs border rounded-full w-40"
@@ -234,35 +237,9 @@
         <!-- SIF 통합 요약 패널 -->
         <div id="sifSummaryPanel" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm"></div>
 
-        <!-- 기인물 테이블 (정렬 가능 헤더) -->
-        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
-          <table class="w-full text-xs border-collapse">
-            <thead class="bg-header-navy text-white sticky top-0 z-10">
-              <tr>
-                <th class="px-2 py-2 text-center w-10">순번</th>
-                <th class="px-2 py-2 text-left cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('기인물')">
-                  기인물 <span class="sort-icon text-[10px]" data-col="기인물"></span>
-                </th>
-                <th class="px-2 py-2 text-left cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('기인물분류')">
-                  분류 <span class="sort-icon text-[10px]" data-col="기인물분류"></span>
-                </th>
-                <th class="px-2 py-2 text-center">구분</th>
-                <th class="px-2 py-2 text-center cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('총사고건수')">
-                  사고건수 <span class="sort-icon text-[10px]" data-col="총사고건수"></span>
-                </th>
-                <th class="px-2 py-2 text-center cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('위험도순위')">
-                  순위 <span class="sort-icon text-[10px]" data-col="위험도순위"></span>
-                </th>
-                <th class="px-2 py-2 text-center w-16">체크</th>
-                <th class="px-2 py-2 text-center">중장비</th>
-                <th class="px-2 py-2 text-center">고소/감전</th>
-                <th class="px-2 py-2 text-left">다빈도 재해형태</th>
-              </tr>
-            </thead>
-            <tbody id="hazardTableBody">
-              <!-- JS로 동적 생성 -->
-            </tbody>
-          </table>
+        <!-- 기��물 작업분류별 그룹 -->
+        <div id="hazardGroupContainer" class="max-h-[600px] overflow-y-auto">
+          <!-- JS로 동적 생성 -->
         </div>
       </section>
 

@@ -191,8 +191,8 @@ const Store = (() => {
    * 위험성 등급 분류
    */
   function getRiskGrade(risk) {
-    if (risk >= 13) return { grade: 'VH', label: '매우위험', color: '#C00000' };
-    if (risk >= 9) return { grade: 'H', label: '고위험', color: '#E26B0A' };
+    if (risk >= 12) return { grade: 'VH', label: '매우위험', color: '#C00000' };
+    if (risk >= 8) return { grade: 'H', label: '고위험', color: '#E26B0A' };
     if (risk >= 4) return { grade: 'M', label: '중위험', color: '#FFC000' };
     return { grade: 'L', label: '저위험', color: '#375623' };
   }
@@ -209,7 +209,7 @@ const Store = (() => {
       const risksAfter = stageRows.map(r => r.riskAfter).filter(v => v > 0);
       const avgBefore = risksBefore.length ? +(risksBefore.reduce((a, b) => a + b, 0) / risksBefore.length).toFixed(1) : 0;
       const avgAfter = risksAfter.length ? +(risksAfter.reduce((a, b) => a + b, 0) / risksAfter.length).toFixed(1) : 0;
-      const highCount = risksBefore.filter(r => r >= 9).length;
+      const highCount = risksBefore.filter(r => r >= 8).length;
       return {
         name,
         total: stageRows.length,
@@ -217,7 +217,7 @@ const Store = (() => {
         avgBefore,
         avgAfter,
         reduction: avgBefore > 0 ? +((avgBefore - avgAfter) / avgBefore).toFixed(3) : 0,
-        grade: avgBefore >= 9 ? '고위험' : avgBefore >= 6 ? '중위험' : '저위험',
+        grade: avgBefore >= 8 ? '고위험' : avgBefore >= 5 ? '중위험' : '저위험',
       };
     });
   }
@@ -229,9 +229,9 @@ const Store = (() => {
     const key = type === 'before' ? 'riskBefore' : 'riskAfter';
     const values = state.rows.map(r => r[key]).filter(v => v > 0);
     return {
-      VH: values.filter(v => v >= 13).length,
-      H: values.filter(v => v >= 9 && v < 13).length,
-      M: values.filter(v => v >= 4 && v < 9).length,
+      VH: values.filter(v => v >= 12).length,
+      H: values.filter(v => v >= 8 && v < 12).length,
+      M: values.filter(v => v >= 4 && v < 8).length,
       L: values.filter(v => v >= 1 && v < 4).length,
       total: values.length,
     };
