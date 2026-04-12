@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>위험성평가 · TBM 웹앱</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // 디자인 토큰 (로드맵 지정 색상)
+            'input-yellow': '#FFFF00',
+            'auto-gray': '#D9D9D9',
+            'header-green': '#ECFDF5',
+            'header-green-dark': '#E3F4E3',
+            'header-navy': '#1F3864',
+            'cell-hit': '#FFC7CE',
+            'risk-vh': '#C00000',
+            'risk-h': '#E26B0A',
+            'risk-m': '#FFC000',
+            'risk-l': '#375623',
+            'bar-light': '#BDD7EE',
+          },
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'sans-serif'],
+            serif: ['"Noto Serif KR"', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+  <!-- 인쇄 CSS -->
+  <style>
+    /* 화면에서는 인쇄 전용 숨김 */
+    .print-only { display: none !important; }
+
+    @media print {
+      body { background: white; font-size: 10pt; font-family: 'Noto Sans KR', sans-serif; }
+      .no-print, header, nav, main { display: none !important; }
+      .print-only { display: block !important; }
+      .print-page {
+        page-break-after: always;
+        width: 186mm; min-height: 273mm;
+        padding: 0;
+      }
+      .print-page:last-child { page-break-after: auto; }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { border: 1px solid #000; padding: 4px; font-size: 9pt; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; }
+    }
+    @page { size: A4 portrait; margin: 12mm; }
+
+    /* 스크롤바 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    /* 섹션 하이라이트 */
+    .section-active { border-left: 3px solid #1F3864; }
+
+    /* 입력 필드 스타일 */
+    .input-yellow { background-color: #FFFDE7; }
+    .input-yellow:focus { background-color: #FFFF00; outline: 2px solid #1F3864; }
+    .cell-auto { background-color: #F3F4F6; }
+
+    /* 체크박스 커스텀 */
+    .hazard-check:checked { accent-color: #C00000; }
+
+    /* 위험도 셀 색상 */
+    .risk-vh { background-color: #C00000; color: white; font-weight: 700; }
+    .risk-h  { background-color: #E26B0A; color: white; font-weight: 700; }
+    .risk-m  { background-color: #FFC000; color: #333; font-weight: 600; }
+    .risk-l  { background-color: #375623; color: white; font-weight: 600; }
+
+    /* 툴팁 */
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute; bottom: 100%; left: 50%;
+      transform: translateX(-50%);
+      background: #1F3864; color: white;
+      padding: 4px 8px; border-radius: 4px;
+      font-size: 12px; white-space: nowrap; z-index: 50;
+    }
+
+    /* 모바일 하단 네비 */
+    @media (max-width: 1023px) {
+      .mobile-nav {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: #1F3864; z-index: 100;
+        display: flex; overflow-x: auto;
+        padding: 6px 4px; gap: 2px;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+      }
+      .mobile-nav a {
+        flex-shrink: 0; padding: 6px 10px;
+        color: rgba(255,255,255,0.7); font-size: 11px;
+        border-radius: 4px; white-space: nowrap;
+      }
+      .mobile-nav a:hover, .mobile-nav a.active {
+        background: rgba(255,255,255,0.2); color: white;
+      }
+      main { padding-bottom: 60px !important; }
+    }
+    @media (min-width: 1024px) {
+      .mobile-nav { display: none; }
+    }
+
+    /* 스크롤 부드럽게 */
+    html { scroll-behavior: smooth; }
+  </style>
+</head>
+
+<body class="font-sans bg-gray-50 text-gray-800 min-h-screen">
+
+  <!-- ===== 상단 헤더 ===== -->
+  <header class="no-print sticky top-0 z-50 bg-header-navy text-white shadow-lg">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <h1 class="text-base lg:text-lg font-bold tracking-tight">위험성평가 · TBM</h1>
+        <span id="headerRefNo" class="text-sm text-blue-200 hidden sm:inline"></span>
+      </div>
+      <div class="flex items-center gap-1 lg:gap-2 flex-wrap">
+        <button onclick="App.save()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span class="mr-1">&#128190;</span> 저장
+        </button>
+        <button onclick="App.load()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span class="mr-1">&#128194;</span> 불러오기
+        </button>
+        <button onclick="PrintManager.print()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span class="mr-1">&#128196;</span> PDF 출력
+        </button>
+        <button onclick="App.exportJSON()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span class="mr-1">&#128229;</span> JSON
+        </button>
+        <button onclick="loadSampleData()" class="px-3 py-1.5 bg-yellow-500/80 hover:bg-yellow-500 text-white rounded text-sm transition font-medium">
+          <span class="mr-1">&#128203;</span> 샘플데이터
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== 메인 레이아웃 ===== -->
+  <div class="max-w-[1600px] mx-auto flex">
+
+    <!-- 좌측 네비게이션 -->
+    <nav id="sideNav" class="no-print hidden lg:block sticky top-[56px] h-[calc(100vh-56px)] w-52 flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto py-4">
+      <ul class="space-y-1 text-sm">
+        <li><a href="#sec-hazard" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-hazard">1. 기인물 체크</a></li>
+        <li><a href="#sec-worktype" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-worktype">2. 작업분류</a></li>
+        <li><a href="#sec-members" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-members">3. 참여자 명단</a></li>
+        <li><a href="#sec-overview" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-overview">4. 작업개요</a></li>
+        <li><a href="#sec-process" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-process">5. 공정 내용</a></li>
+        <li><a href="#sec-assessment" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-assessment">6. 위험성평가</a></li>
+        <li><a href="#sec-analysis" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-analysis">7. 공정분석</a></li>
+        <li><a href="#sec-charts" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-charts">8. 차트/시각화</a></li>
+        <li class="border-t border-gray-200 mt-2 pt-2">
+          <a href="#sec-tbm" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-tbm">TBM 1면</a>
+        </li>
+        <li>
+          <a href="#sec-tbm2" class="nav-link block px-4 py-2 hover:bg-gray-100 rounded-r transition" data-section="sec-tbm2">TBM 2면</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="flex-1 px-4 lg:px-8 py-6 space-y-8 min-w-0">
+
+      <!-- 관리번호 / 작업명 / 작업내용 (공통 헤더) -->
+      <section class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">기본 정보</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">관리번호</label>
+            <input type="text" id="inp-refNo" placeholder="RA-2025-0412-001"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              oninput="Store.set('관리번호', this.value)">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">작업명</label>
+            <input type="text" id="inp-jobName" placeholder="예: 배전반 교체 공사"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              oninput="Store.set('작업명', this.value)">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">작업내용</label>
+            <input type="text" id="inp-jobDesc" placeholder="예: 노후 배전반 철거 및 신규 설치"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              oninput="Store.set('작업내용', this.value)">
+          </div>
+        </div>
+      </section>
+
+      <!-- ① 기인물 체크 리스트 (A7) -->
+      <section id="sec-hazard" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-header-navy">
+            1. 기인물 체크 리스트
+            <span class="text-xs font-normal text-gray-400 ml-2">A7 (58개 프리셋)</span>
+          </h2>
+          <div class="flex items-center gap-3 text-sm">
+            <span class="text-gray-500">선택: <strong id="hazardCount" class="text-risk-vh">0</strong>개</span>
+            <button onclick="SectionHazard.toggleAll(true)" class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded">전체선택</button>
+            <button onclick="SectionHazard.toggleAll(false)" class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded">전체해제</button>
+          </div>
+        </div>
+
+        <!-- 작업분류별 필터 탭 -->
+        <div class="mb-3 flex flex-wrap gap-1.5">
+          <button onclick="SectionHazard.setFilter('전체')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition bg-header-navy text-white" data-filter="전체">전체 (58)</button>
+          <button onclick="SectionHazard.setFilter('고소작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="고소작업">고소작업</button>
+          <button onclick="SectionHazard.setFilter('정전작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="정전작업">정전작업</button>
+          <button onclick="SectionHazard.setFilter('굴착작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="굴착작업">굴착작업</button>
+          <button onclick="SectionHazard.setFilter('중장비작업')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="중장비작업">중장비작업</button>
+          <button onclick="SectionHazard.setFilter('12대기인물')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="12대기인물">12대 기인물</button>
+          <button onclick="SectionHazard.setFilter('선택됨')" class="hazard-filter-tab px-3 py-1 text-xs rounded-full border transition hover:bg-gray-100" data-filter="선택됨">선택됨</button>
+          <input type="text" id="hazardSearch" placeholder="기인물 검색..."
+            class="ml-2 px-3 py-1 text-xs border rounded-full w-40"
+            oninput="SectionHazard.setSearch(this.value)">
+        </div>
+
+        <!-- SIF 통합 요약 패널 -->
+        <div id="sifSummaryPanel" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm"></div>
+
+        <!-- 기인물 테이블 (정렬 가능 헤더) -->
+        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead class="bg-header-navy text-white sticky top-0 z-10">
+              <tr>
+                <th class="px-2 py-2 text-center w-10">순번</th>
+                <th class="px-2 py-2 text-left cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('기인물')">
+                  기인물 <span class="sort-icon text-[10px]" data-col="기인물"></span>
+                </th>
+                <th class="px-2 py-2 text-left cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('기인물분류')">
+                  분류 <span class="sort-icon text-[10px]" data-col="기인물분류"></span>
+                </th>
+                <th class="px-2 py-2 text-center">구분</th>
+                <th class="px-2 py-2 text-center cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('총사고건수')">
+                  사고건수 <span class="sort-icon text-[10px]" data-col="총사고건수"></span>
+                </th>
+                <th class="px-2 py-2 text-center cursor-pointer select-none hover:bg-blue-900" onclick="SectionHazard.sort('위험도순위')">
+                  순위 <span class="sort-icon text-[10px]" data-col="위험도순위"></span>
+                </th>
+                <th class="px-2 py-2 text-center w-16">체크</th>
+                <th class="px-2 py-2 text-center">중장비</th>
+                <th class="px-2 py-2 text-center">고소/감전</th>
+                <th class="px-2 py-2 text-left">다빈도 재해형태</th>
+              </tr>
+            </thead>
+            <tbody id="hazardTableBody">
+              <!-- JS로 동적 생성 -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ② 작업분류 자동판정 (H7) -->
+      <section id="sec-worktype" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">
+          2. 작업분류 자동판정
+          <span class="text-xs font-normal text-gray-400 ml-2">H7 (10개)</span>
+        </h2>
+        <div id="workTypeGrid" class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <!-- JS로 동적 생성 -->
+        </div>
+        <div class="mt-3 p-3 bg-gray-50 rounded text-sm">
+          <span class="text-gray-500">작업분류 결과:</span>
+          <strong id="workTypeResult" class="ml-2 text-header-navy"></strong>
+        </div>
+      </section>
+
+      <!-- ③ 참여자 명단 (H20) -->
+      <section id="sec-members" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-header-navy">
+            3. 참여자 명단
+            <span class="text-xs font-normal text-gray-400 ml-2">H20 (최대 50명)</span>
+          </h2>
+          <button onclick="SectionMembers.addRow()" class="text-xs px-3 py-1.5 bg-header-navy text-white rounded hover:bg-blue-900 transition">
+            + 참여자 추가
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead class="bg-header-green-dark">
+              <tr>
+                <th class="px-3 py-2 text-center w-10">순번</th>
+                <th class="px-3 py-2 text-left">소속</th>
+                <th class="px-3 py-2 text-left">성명</th>
+                <th class="px-3 py-2 text-center w-16">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="memberTableBody">
+              <!-- JS로 동적 생성 -->
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-3 p-3 bg-gray-50 rounded text-sm">
+          <span class="text-gray-500">참여자 요약:</span>
+          <strong id="membersResult" class="ml-2"></strong>
+        </div>
+      </section>
+
+      <!-- ④ 작업개요 (O7) -->
+      <section id="sec-overview" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">
+          4. 작업개요
+          <span class="text-xs font-normal text-gray-400 ml-2">O7</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- 노란셀 (직접입력) -->
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              회사(부서)명
+            </label>
+            <input type="text" data-field="회사부서명" placeholder="회사명 또는 부서명"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              작성일자
+            </label>
+            <input type="date" data-field="작성일자"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              작성자
+            </label>
+            <input type="text" data-field="작성자" placeholder="작성자명"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              작업기간(시간)
+            </label>
+            <input type="text" data-field="작업기간" placeholder="예: 2025.04.12 09:00~18:00"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              작업장소
+            </label>
+            <input type="text" data-field="작업장소" placeholder="작업 장소"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              중점관리사항
+            </label>
+            <input type="text" data-field="중점관리사항" placeholder="중점 관리사항"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              필요한 보호구
+            </label>
+            <input type="text" data-field="필요한보호구" placeholder="안전모, 안전화, 안전대 등"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-input-yellow rounded-full mr-1"></span>
+              필요한 공기구
+            </label>
+            <input type="text" data-field="필요한공기구" placeholder="공기구 목록"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+          </div>
+
+          <!-- 회색셀 (자동반영) -->
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-auto-gray rounded-full mr-1"></span>
+              관리번호 (자동)
+            </label>
+            <input type="text" id="ov-refNo" readonly
+              class="cell-auto w-full border border-gray-200 rounded px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-auto-gray rounded-full mr-1"></span>
+              작업분류 (자동)
+            </label>
+            <input type="text" id="ov-workType" readonly
+              class="cell-auto w-full border border-gray-200 rounded px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-auto-gray rounded-full mr-1"></span>
+              평가참여자 (자동)
+            </label>
+            <input type="text" id="ov-members" readonly
+              class="cell-auto w-full border border-gray-200 rounded px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">
+              <span class="inline-block w-2 h-2 bg-auto-gray rounded-full mr-1"></span>
+              투입 중장비 (자동 + 수동)
+            </label>
+            <div class="flex gap-2">
+              <input type="text" id="ov-equipment" readonly
+                class="cell-auto flex-1 border border-gray-200 rounded px-3 py-2 text-sm bg-gray-100 cursor-not-allowed">
+              <input type="text" data-field="투입중장비_수동" placeholder="추가 장비"
+                class="input-yellow w-32 border border-gray-300 rounded px-3 py-2 text-sm overview-input">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑤ 공정 내용 (U7) -->
+      <section id="sec-process" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-header-navy">
+            5. 공정 내용
+            <span class="text-xs font-normal text-gray-400 ml-2">U7</span>
+          </h2>
+          <button onclick="SectionProcess.addRow()" class="text-xs px-3 py-1.5 bg-header-navy text-white rounded hover:bg-blue-900 transition">
+            + 공정 추가
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead class="bg-header-navy text-white">
+              <tr>
+                <th class="px-3 py-2 text-center w-24">관리번호</th>
+                <th class="px-3 py-2 text-left">작업단계 (공정)</th>
+                <th class="px-3 py-2 text-left">작업내용</th>
+                <th class="px-3 py-2 text-left w-56">기인물 (복수선택 가능)</th>
+                <th class="px-3 py-2 text-center w-16">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="processTableBody">
+              <!-- JS로 동적 생성 -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ⑥ 위험성평가 본체 (AB7) -->
+      <section id="sec-assessment" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-header-navy">
+            6. 위험성평가
+            <span class="text-xs font-normal text-gray-400 ml-2">AB7 (최대 300행)</span>
+          </h2>
+          <button onclick="SectionAssessment.addRow()" class="text-xs px-3 py-1.5 bg-header-navy text-white rounded hover:bg-blue-900 transition">
+            + 평가 행 추가
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead class="bg-header-navy text-white sticky top-0">
+              <tr>
+                <th class="px-2 py-2 w-16">공정번호</th>
+                <th class="px-2 py-2 text-left">작업(공정)단계</th>
+                <th class="px-2 py-2 text-left">유해위험요��� <span class="text-[9px] text-blue-200">(SIF 추천)</span></th>
+                <th class="px-2 py-2 text-left">안전조치사항 <span class="text-[9px] text-blue-200">(SIF 추천)</span></th>
+                <th class="px-2 py-2 w-12">가능성(전)</th>
+                <th class="px-2 py-2 w-12">중대성(전)</th>
+                <th class="px-2 py-2 w-14">위험도(전)</th>
+                <th class="px-2 py-2 w-12">가능성(후)</th>
+                <th class="px-2 py-2 w-12">중대성(후)</th>
+                <th class="px-2 py-2 w-14">위험성(후)</th>
+                <th class="px-2 py-2 w-10">TBM</th>
+                <th class="px-2 py-2 w-10">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="assessmentTableBody">
+              <!-- JS로 동적 생성 -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ⑦ 공정별 위험성 분석 (AL7) -->
+      <section id="sec-analysis" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">
+          7. 공정별 위험성 분석
+          <span class="text-xs font-normal text-gray-400 ml-2">AL7 (자동 집계)</span>
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-3 py-2 text-left">공정명</th>
+                <th class="px-3 py-2 text-center">위험요인 수</th>
+                <th class="px-3 py-2 text-center">고위험 건수</th>
+                <th class="px-3 py-2 text-center">평균위험도(전)</th>
+                <th class="px-3 py-2 text-center">평균위험도(후)</th>
+                <th class="px-3 py-2 text-center">감소율</th>
+                <th class="px-3 py-2 text-center">등급</th>
+              </tr>
+            </thead>
+            <tbody id="analysisTableBody">
+              <tr><td colspan="7" class="text-center py-8 text-gray-400">위험성평가 데이터를 입력하면 자동 집계됩니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ⑧ 차트 시각화 -->
+      <section id="sec-charts" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">
+          8. 차트 시각화
+          <span class="text-xs font-normal text-gray-400 ml-2">5종 차트</span>
+        </h2>
+
+        <!-- 차트 1: KPI 카드 -->
+        <div id="kpiCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 text-center">
+            <div class="text-xs text-gray-500 mb-1">전체 작업단계</div>
+            <div id="kpi-stages" class="text-2xl font-bold text-header-navy">0</div>
+            <div class="text-xs text-gray-400">개 공정</div>
+          </div>
+          <div class="p-4 bg-orange-50 rounded-lg border border-orange-200 text-center">
+            <div class="text-xs text-gray-500 mb-1">총 유해위험요인</div>
+            <div id="kpi-hazards" class="text-2xl font-bold text-risk-h">0</div>
+            <div class="text-xs text-gray-400">건</div>
+          </div>
+          <div class="p-4 bg-red-50 rounded-lg border border-red-200 text-center">
+            <div class="text-xs text-gray-500 mb-1">고위험 공정</div>
+            <div id="kpi-high" class="text-2xl font-bold text-risk-vh">0</div>
+            <div id="kpi-high-rate" class="text-xs text-gray-400">(0%)</div>
+          </div>
+          <div class="p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+            <div class="text-xs text-gray-500 mb-1">평균 위험도</div>
+            <div class="flex items-baseline justify-center gap-2">
+              <span class="text-sm text-gray-500">전:</span>
+              <span id="kpi-avg-before" class="text-xl font-bold">0</span>
+              <span class="text-sm text-gray-500">후:</span>
+              <span id="kpi-avg-after" class="text-xl font-bold text-blue-600">0</span>
+            </div>
+            <div id="kpi-reduction" class="text-xs text-green-600 font-medium">감소율 0%</div>
+          </div>
+        </div>
+
+        <!-- 차트 2~4 그리드 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-sm font-semibold mb-2">공정별 위험요인 수 + 고위험 건수</h3>
+            <canvas id="chart-horizontal-bar" height="300"></canvas>
+          </div>
+          <div class="border border-gray-200 rounded-lg p-4">
+            <h3 class="text-sm font-semibold mb-2">위험성 등급 분포 (개선 전/후)</h3>
+            <div class="flex gap-4">
+              <div class="flex-1"><canvas id="chart-donut-before" height="200"></canvas></div>
+              <div class="flex-1"><canvas id="chart-donut-after" height="200"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="border border-gray-200 rounded-lg p-4 mb-6">
+          <h3 class="text-sm font-semibold mb-2">공정별 평균위험도 개선 전/후 비교</h3>
+          <canvas id="chart-vertical-bar" height="250"></canvas>
+        </div>
+
+        <!-- 차트 5: 고위험 공정 하이라이트 -->
+        <div id="highRiskPanel" class="border-2 border-red-200 rounded-lg p-4 bg-red-50">
+          <h3 class="text-sm font-bold text-risk-vh mb-3">고위험 공정 식별 결과</h3>
+          <div id="highRiskList" class="space-y-2 text-sm text-gray-400">
+            위험성평가 데이터를 입력하면 고위험 공정이 표시됩니다.
+          </div>
+        </div>
+      </section>
+
+      <!-- TBM 일지 1면 -->
+      <section id="sec-tbm" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">
+          TBM 일지 (1면)
+          <span class="text-xs font-normal text-gray-400 ml-2">위험성평가 자동 연동</span>
+        </h2>
+
+        <!-- TBM 작업정보 (자동 승계) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 text-sm">
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">회사명</label>
+            <div id="tbm-company" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">시행일</label>
+            <div id="tbm-date" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">작업명</label>
+            <div id="tbm-jobname" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">작업장소</label>
+            <div id="tbm-location" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">작업시간</label>
+            <div id="tbm-time" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">투입장비</label>
+            <div id="tbm-equipment" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">투입인원 / 작업책임자</label>
+            <div id="tbm-personnel" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+          <div>
+            <label class="block text-[10px] text-gray-400 mb-0.5">안전허가 (작업분류)</label>
+            <div id="tbm-permit" class="cell-auto px-2 py-1.5 border rounded bg-gray-50 text-xs min-h-[28px]">-</div>
+          </div>
+        </div>
+
+        <!-- 위험예지활동 표 (AB7 TBM 체크 자동 반영) -->
+        <div class="mb-6">
+          <h3 class="text-sm font-bold text-risk-vh mb-2">위험예지활동</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse border border-gray-300">
+              <thead class="bg-red-50">
+                <tr>
+                  <th class="border border-gray-300 px-2 py-1.5 w-10 text-center">순번</th>
+                  <th class="border border-gray-300 px-2 py-1.5 text-left">유해 · 위험요인</th>
+                  <th class="border border-gray-300 px-2 py-1.5 text-left">안전대책</th>
+                  <th class="border border-gray-300 px-2 py-1.5 w-14 text-center">위험도</th>
+                  <th class="border border-gray-300 px-2 py-1.5 w-10 text-center">확인</th>
+                </tr>
+              </thead>
+              <tbody id="tbmRiskTableBody">
+                <tr><td colspan="5" class="text-center py-4 text-gray-400">위험성평가에서 TBM 체크된 항목이 자동 표시됩니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- One Point -->
+          <div class="mt-3">
+            <label class="block text-xs font-semibold text-risk-vh mb-1">One Point (강조 안내사항)</label>
+            <input type="text" id="tbm-onepoint" placeholder="예: 정전 확인 후 작업 시작"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              oninput="SectionTBM.updateField('onePoint', this.value)">
+          </div>
+        </div>
+
+        <!-- 점검 Check List 8문항 -->
+        <div class="mb-6">
+          <h3 class="text-sm font-bold text-header-navy mb-2">점검 Check List</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2" id="tbmChecklist">
+            <!-- JS 생성 -->
+          </div>
+        </div>
+
+        <!-- 참석자 및 건강상태 확인 -->
+        <div class="mb-6">
+          <h3 class="text-sm font-bold text-header-navy mb-2">참석자 및 건강상태 확인
+            <span class="text-xs font-normal text-gray-400 ml-1">(H20 자동 반영)</span>
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse border border-gray-300">
+              <thead class="bg-header-green-dark">
+                <tr>
+                  <th class="border border-gray-300 px-2 py-1.5 w-16">소속</th>
+                  <th class="border border-gray-300 px-2 py-1.5 w-16">성명</th>
+                  <th class="border border-gray-300 px-2 py-1.5 w-16">서명</th>
+                  <th class="border border-gray-300 px-1 py-1.5 w-10 text-center text-[10px]">안전모</th>
+                  <th class="border border-gray-300 px-1 py-1.5 w-10 text-center text-[10px]">안전대</th>
+                  <th class="border border-gray-300 px-1 py-1.5 w-10 text-center text-[10px]">안전화</th>
+                  <th class="border border-gray-300 px-2 py-1.5 w-16 text-center text-[10px]">건강(전)</th>
+                  <th class="border border-gray-300 px-2 py-1.5 w-16 text-center text-[10px]">건강(후)</th>
+                  <th class="border border-gray-300 px-1 py-1.5 w-10 text-center text-[10px]">이상</th>
+                </tr>
+              </thead>
+              <tbody id="tbmAttendeeBody">
+                <tr><td colspan="9" class="text-center py-4 text-gray-400">참여자 명단(H20)에서 자동 반영됩니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TBM 일지 2면 -->
+      <section id="sec-tbm2" class="bg-white rounded-xl shadow p-6 border border-gray-200">
+        <h2 class="text-base font-bold text-header-navy mb-4">
+          TBM 일지 (2면)
+          <span class="text-xs font-normal text-gray-400 ml-2">피드백 · 전달사항</span>
+        </h2>
+
+        <!-- 적용 절차서 / 안전점검표 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">적용 절차서</label>
+            <input type="text" id="tbm-procedure" placeholder="적용 절차서명"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              oninput="SectionTBM.updateField('procedure', this.value)">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">적용 작업 전 안전점검표</label>
+            <input type="text" id="tbm-safetySheet" placeholder="안전점검표명"
+              class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              oninput="SectionTBM.updateField('safetySheet', this.value)">
+          </div>
+        </div>
+
+        <!-- 감시자 안전장구 지급 -->
+        <div class="mb-6">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" id="tbm-safetyGear"
+              class="w-4 h-4"
+              onchange="SectionTBM.updateField('safetyGearProvided', this.checked)">
+            <span class="text-sm font-medium">감시자 안전장구 지급 여부</span>
+          </label>
+        </div>
+
+        <!-- 작업 종료 후 피드백 미팅 -->
+        <div class="mb-6">
+          <h3 class="text-sm font-bold text-header-navy mb-2">작업 종료 후 피드백 미팅</h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400 w-4">1.</span>
+              <input type="text" placeholder="피드백 내용"
+                class="input-yellow flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateFeedback(0, this.value)">
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400 w-4">2.</span>
+              <input type="text" placeholder="피드백 내용"
+                class="input-yellow flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateFeedback(1, this.value)">
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400 w-4">3.</span>
+              <input type="text" placeholder="피드백 내용"
+                class="input-yellow flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateFeedback(2, this.value)">
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400 w-4">4.</span>
+              <input type="text" placeholder="피드백 내용"
+                class="input-yellow flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateFeedback(3, this.value)">
+            </div>
+          </div>
+        </div>
+
+        <!-- 기타 특이사항 -->
+        <div class="mb-6">
+          <label class="block text-xs font-medium text-gray-500 mb-1">기타 특이사항</label>
+          <textarea id="tbm-notes" rows="3" placeholder="기타 특이사항 기록"
+            class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            oninput="SectionTBM.updateField('notes', this.value)"></textarea>
+        </div>
+
+        <!-- 도급인 전달사항 -->
+        <div class="mb-4">
+          <h3 class="text-sm font-bold text-header-navy mb-2">도급인 전달사항</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-medium text-gray-500 mb-1">전달 내용</label>
+              <textarea id="tbm-contractor-content" rows="2" placeholder="도급인 전달사항 내용"
+                class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateContractor('content', this.value)"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">전달일시</label>
+              <input type="datetime-local" id="tbm-contractor-datetime"
+                class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateContractor('deliveredAt', this.value)">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">전달자</label>
+              <input type="text" id="tbm-contractor-deliverer" placeholder="전달자명"
+                class="input-yellow w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                oninput="SectionTBM.updateContractor('deliverer', this.value)">
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===== 모바일 하단 네비 ===== -->
+  <div class="mobile-nav no-print">
+    <a href="#sec-hazard">기인물</a>
+    <a href="#sec-worktype">분류</a>
+    <a href="#sec-members">참여자</a>
+    <a href="#sec-overview">개요</a>
+    <a href="#sec-process">공정</a>
+    <a href="#sec-assessment">평가</a>
+    <a href="#sec-analysis">분석</a>
+    <a href="#sec-charts">차트</a>
+    <a href="#sec-tbm">TBM</a>
+  </div>
+
+  <!-- ===== SIF 추천 팝업 모달 ===== -->
+  <div id="sifPopup" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-[800px] max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="p-4 bg-risk-vh text-white flex justify-between items-center flex-shrink-0">
+        <h3 class="font-bold" id="sifPopupTitle">SIF 사고사례 기반 추천</h3>
+        <button onclick="SifPopup.close()" class="text-white/70 hover:text-white text-xl">&times;</button>
+      </div>
+      <!-- 탭 -->
+      <div class="flex border-b bg-gray-50 flex-shrink-0">
+        <button onclick="SifPopup.switchTab('cases')" class="sif-tab px-4 py-2 text-sm font-medium border-b-2 border-risk-vh text-risk-vh" data-tab="cases">사고사례</button>
+        <button onclick="SifPopup.switchTab('hazards')" class="sif-tab px-4 py-2 text-sm text-gray-500 hover:text-gray-700" data-tab="hazards">추천 유해위험요인</button>
+        <button onclick="SifPopup.switchTab('safety')" class="sif-tab px-4 py-2 text-sm text-gray-500 hover:text-gray-700" data-tab="safety">추천 안전조치</button>
+      </div>
+      <!-- 콘텐츠 -->
+      <div id="sifPopupContent" class="flex-1 overflow-y-auto p-4"></div>
+      <!-- 하단 버튼 -->
+      <div class="p-4 bg-gray-50 border-t flex justify-between items-center flex-shrink-0">
+        <span id="sifPopupSelection" class="text-xs text-gray-500">선택된 항목: 0개</span>
+        <div class="flex gap-2">
+          <button onclick="SifPopup.close()" class="px-4 py-2 text-sm border rounded hover:bg-gray-100">취소</button>
+          <button onclick="SifPopup.apply()" class="px-4 py-2 text-sm bg-risk-vh text-white rounded hover:bg-red-800 font-medium">선택 적용</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JavaScript 모듈 ===== -->
+  <script src="js/store.js"></script>
+  <script src="data/hazards.js"></script>
+  <script src="data/sif-cases.js"></script>
+  <script src="data/sample-data.js"></script>
+  <script src="js/sections.js"></script>
+  <script src="js/print.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
