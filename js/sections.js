@@ -18,8 +18,7 @@ const SectionHazard = (() => {
       const q = currentSearch.toLowerCase();
       hazards = hazards.filter(h =>
         h.기인물.toLowerCase().includes(q) ||
-        h.기인물분류.toLowerCase().includes(q) ||
-        h.다빈도_재해형태.toLowerCase().includes(q)
+        h.기인물분류.toLowerCase().includes(q)
       );
     }
 
@@ -57,6 +56,12 @@ const SectionHazard = (() => {
       const checkedCount = items.filter(h => h.checked).length;
       const totalAccidents = items.reduce((s, h) => s + h.총사고건수, 0);
 
+      // 그룹 내 아이템 수에 따라 열 수 결정
+      // 화기/밀폐/굴착/중량물은 행방향(가로) 정렬
+      const horizontalTypes = ['화기작업', '밀폐작업', '굴착작업', '중량물작업'];
+      const isHorizontal = horizontalTypes.includes(wt);
+      const colCount = isHorizontal ? items.length : (items.length >= 6 ? 3 : items.length >= 3 ? 2 : 1);
+
       html += `
         <div class="mb-3 border ${colors.border} rounded-lg overflow-hidden">
           <div class="flex items-center justify-between px-3 py-2 ${colors.bg} cursor-pointer select-none"
@@ -64,7 +69,7 @@ const SectionHazard = (() => {
             <div class="flex items-center gap-2">
               <span class="text-xs font-bold ${colors.text}">${isCollapsed ? '&#9654;' : '&#9660;'}</span>
               <span class="font-bold text-sm ${colors.text}">${wt}</span>
-              <span class="text-[10px] text-gray-500">${items.length}개 기인물 | 총 ${totalAccidents.toLocaleString()}건</span>
+              <span class="text-[10px] text-gray-500">${items.length}개 | ${totalAccidents.toLocaleString()}건</span>
               ${checkedCount > 0 ? `<span class="px-1.5 py-0.5 bg-cell-hit text-risk-vh text-[10px] rounded font-bold">${checkedCount}개 선택</span>` : ''}
             </div>
             <div class="flex items-center gap-2">
@@ -75,45 +80,27 @@ const SectionHazard = (() => {
             </div>
           </div>
           ${isCollapsed ? '' : `
-            <table class="w-full text-xs border-collapse">
-              <thead class="bg-header-navy text-white">
-                <tr>
-                  <th class="px-2 py-1.5 text-center w-10">순번</th>
-                  <th class="px-2 py-1.5 text-left">기인물</th>
-                  <th class="px-2 py-1.5 text-center w-16">사고건수</th>
-                  <th class="px-2 py-1.5 text-center w-12">순위</th>
-                  <th class="px-2 py-1.5 text-center w-16">체크</th>
-                  <th class="px-2 py-1.5 text-left">다빈도 재해형태</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${items.map(h => {
-                  const origIdx = allHazards.indexOf(h);
-                  return `
-                    <tr class="border-b border-gray-100 hover:bg-gray-50 ${h.checked ? 'bg-yellow-50' : ''} ${h.구분 === '12대기인물' ? 'font-medium' : ''}">
-                      <td class="px-2 py-1.5 text-center text-gray-400">${h.순번}</td>
-                      <td class="px-2 py-1.5 font-medium">
-                        ${h.기인물}
-                        ${h.구분 === '12대기인물' ? ' <span class="px-1 py-0.5 bg-red-100 text-risk-vh text-[9px] rounded font-bold">12대</span>' : ''}
-                      </td>
-                      <td class="px-2 py-1.5 text-center font-mono">${h.총사고건수}</td>
-                      <td class="px-2 py-1.5 text-center text-gray-500">${h.위험도순위}위</td>
-                      <td class="px-2 py-1.5 text-center">
-                        <select onchange="SectionHazard.toggle(${origIdx}, this.value)"
-                          class="text-xs border rounded px-1 py-0.5 ${h.checked ? 'bg-cell-hit font-bold' : 'bg-white'}">
-                          <option value="미해당" ${!h.checked ? 'selected' : ''}>미해당</option>
-                          <option value="해당" ${h.checked ? 'selected' : ''}>해당</option>
-                        </select>
-                      </td>
-                      <td class="px-2 py-1.5">
-                        <span class="text-[10px]">${h.다빈도_재해형태}</span>
-                        <span class="text-[10px] text-gray-400 ml-1">${(h.다빈도_재해형태비율 * 100).toFixed(1)}%</span>
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
+            <div class="grid gap-0 p-1" style="grid-template-columns: repeat(${colCount}, minmax(0, 1fr))">
+              ${items.map(h => {
+                const origIdx = allHazards.indexOf(h);
+                return `
+                  <div class="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-gray-50 select-none
+                    ${h.checked ? 'bg-yellow-50 ring-1 ring-yellow-300' : ''}
+                    ${h.구분 === '12대기인물' ? 'font-medium' : ''}"
+                    onclick="SectionHazard.toggle(${origIdx}, '${h.checked ? '미해당' : '해당'}')">
+                    <span class="w-4 h-4 flex-shrink-0 border-2 rounded flex items-center justify-center text-[10px]
+                      ${h.checked ? 'bg-risk-vh border-risk-vh text-white' : 'border-gray-300 bg-white'}">
+                      ${h.checked ? '&#10003;' : ''}
+                    </span>
+                    <span class="text-[10px] text-orange-500 font-bold w-8 text-right flex-shrink-0">${h.위험도순위}위</span>
+                    <span class="text-xs flex-1 truncate">
+                      ${h.기인물}${h.구분 === '12대기인물' ? ' <span class="px-1 py-0.5 bg-red-100 text-risk-vh text-[9px] rounded font-bold">12대</span>' : ''}
+                    </span>
+                    <span class="text-[10px] font-mono text-gray-500 flex-shrink-0">${h.총사고건수}건</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
           `}
         </div>
       `;
@@ -225,6 +212,75 @@ const SectionHazard = (() => {
 // ② 작업분류 자동판정 (H7)
 // =============================================
 const SectionWorkType = (() => {
+  // 작업분류별 안전수칙 안내 메시지
+  const WORK_TYPE_ALERTS = {
+    '화기작업': {
+      icon: '&#128293;',
+      color: 'orange',
+      title: '화기작업 안전수칙',
+      items: [
+        '화기작업감시자 반드시 배치',
+        '화기감시자 겸직 금지 (전담 배치)',
+        '소화기 비치 및 화기작업 표지 부착',
+      ],
+    },
+    '밀폐작업': {
+      icon: '&#9888;',
+      color: 'purple',
+      title: '밀폐작업 안전수칙',
+      items: [
+        '밀폐작업 감시자 반드시 배치',
+        '작업 전 산소농도 측정 실시',
+        '출입명부 작성 및 관리',
+        '밀폐공간 표지판 부착',
+      ],
+      button: { label: '&#128203; 밀폐작업 출입대장', action: 'ConfinedEntryModal.open()' },
+    },
+    '굴착작업': {
+      icon: '&#9935;',
+      color: 'amber',
+      title: '굴착작업 안전수칙',
+      items: [
+        '유도자 반드시 배치',
+        '신호수 반드시 배치',
+        '굴착작업 표지 부착',
+      ],
+    },
+    '중량물작업': {
+      icon: '&#9878;',
+      color: 'indigo',
+      title: '중량물작업 안전수칙',
+      items: [
+        '중량물 작업계획서 사전 작성 필수',
+        '작업책임자 지정',
+        '중량물작업 표지 부착',
+      ],
+      button: { label: '&#128221; 중량물 작업계획서 작성', action: 'HeavyLiftPlanModal.open()' },
+    },
+    '중장비작업': {
+      icon: '&#128679;',
+      color: 'blue',
+      title: '중장비작업 안전수칙',
+      items: [
+        '중장비 작업계획서 사전 작성 필수',
+        '유도자 · 신호수 반드시 배치',
+        '운전원 면허 확인',
+        '작업반경 내 출입통제 표지 부착',
+      ],
+      button: { label: '&#128679; 중장비 작업계획서 작성', action: 'HeavyEquipmentPlanModal.open()' },
+    },
+    '고소작업': {
+      icon: '&#9888;',
+      color: 'red',
+      title: '고소작업 안전수칙',
+      items: [
+        '안전대 부착설비 확인 및 착용',
+        '추락방지망 설치',
+        '고소작업 표지 부착',
+      ],
+    },
+  };
+
   function render() {
     const types = Store.classifyWorkTypes();
     const grid = document.getElementById('workTypeGrid');
@@ -249,6 +305,47 @@ const SectionWorkType = (() => {
 
     document.getElementById('workTypeResult').textContent = Store.getWorkTypeText() || '(없음)';
     document.getElementById('ov-workType').value = Store.getWorkTypeText();
+
+    // 안전수칙 안내 패널 렌더링
+    renderAlerts(types);
+  }
+
+  function renderAlerts(types) {
+    const container = document.getElementById('workTypeAlerts');
+    const activeTypes = types.filter(t => t.result === '해당' && WORK_TYPE_ALERTS[t.id]);
+
+    if (activeTypes.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = activeTypes.map(t => {
+      const alert = WORK_TYPE_ALERTS[t.id];
+      return `
+        <div class="p-3 bg-${alert.color}-50 border border-${alert.color}-300 rounded-lg">
+          <div class="flex items-start gap-2">
+            <span class="text-lg flex-shrink-0">${alert.icon}</span>
+            <div class="flex-1">
+              <p class="font-bold text-sm text-${alert.color}-800 mb-1">${alert.title}</p>
+              <ul class="space-y-0.5">
+                ${alert.items.map(item => `
+                  <li class="flex items-start gap-1.5 text-xs text-${alert.color}-700">
+                    <span class="text-${alert.color}-500 mt-0.5 flex-shrink-0">&#10148;</span>
+                    <span>${item}</span>
+                  </li>
+                `).join('')}
+              </ul>
+              ${alert.button ? `
+                <button onclick="${alert.button.action}"
+                  class="mt-2 px-3 py-1.5 bg-${alert.color}-600 text-white text-xs rounded hover:bg-${alert.color}-700 transition font-medium">
+                  ${alert.button.label}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   function manualToggle(index, value) {
@@ -293,6 +390,120 @@ const SectionMembers = (() => {
     }
     document.getElementById('membersResult').textContent = Store.getMembersText() || '(없음)';
     document.getElementById('ov-members').value = Store.getMembersText();
+
+    renderRoleAssignments();
+  }
+
+  function renderRoleAssignments() {
+    const roles = Store.getRequiredRoles();
+    const panel = document.getElementById('roleAssignmentPanel');
+    const grid = document.getElementById('roleAssignmentGrid');
+    const docBtns = document.getElementById('roleDocButtons');
+
+    if (roles.length === 0) {
+      panel.classList.add('hidden');
+      return;
+    }
+    panel.classList.remove('hidden');
+
+    const members = Store.get('members').filter(m => m.name);
+    const assignments = Store.get('roleAssignments');
+
+    grid.innerHTML = roles.map(r => {
+      const assigned = assignments[r.role] || [];
+      const colorMap = {
+        '화기작업': 'orange', '밀폐작업': 'purple', '굴착작업': 'amber',
+        '중장비작업': 'blue', '중량물작업': 'indigo',
+      };
+      const color = colorMap[r.workType] || 'gray';
+
+      return `
+        <div class="p-3 border border-${color}-300 rounded-lg bg-${color}-50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-${color}-800">${r.label}</span>
+            ${r.exclusive ? '<span class="text-[9px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-bold">겸직 금지</span>' : ''}
+            <span class="text-[10px] text-gray-500">최소 ${r.min}명</span>
+          </div>
+          ${members.length === 0
+            ? '<p class="text-xs text-gray-400">참여자를 먼저 추가해주세요.</p>'
+            : `<div class="space-y-1">
+                ${members.map((m, mi) => {
+                  const realIdx = Store.get('members').indexOf(m);
+                  const isAssigned = assigned.includes(realIdx);
+                  return `
+                    <label class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-white/50 ${isAssigned ? 'bg-white ring-1 ring-' + color + '-400' : ''}">
+                      <input type="checkbox" ${isAssigned ? 'checked' : ''}
+                        onchange="SectionMembers.toggleRole('${r.role}', ${realIdx}, this.checked)"
+                        class="w-3.5 h-3.5 accent-${color}-600">
+                      <span class="text-xs">${m.name}</span>
+                      <span class="text-[10px] text-gray-400">${m.affiliation || ''}</span>
+                    </label>
+                  `;
+                }).join('')}
+              </div>`
+          }
+        </div>
+      `;
+    }).join('');
+
+    // 역할 검증 결과
+    renderValidation();
+
+    // 부가 문서 버튼 (중량물 작업계획서, 밀폐 출입대장)
+    const types = Store.classifyWorkTypes();
+    let btns = '';
+    if (types.find(t => t.id === '중량물작업' && t.result === '해당')) {
+      btns += `<button onclick="HeavyLiftPlanModal.open()"
+        class="px-3 py-2 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition font-medium">
+        &#128221; 중량물 작업계획서 작성
+      </button>`;
+    }
+    if (types.find(t => t.id === '밀폐작업' && t.result === '해당')) {
+      btns += `<button onclick="ConfinedEntryModal.open()"
+        class="px-3 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition font-medium">
+        &#128203; 밀폐작업 출입대장
+      </button>`;
+    }
+    docBtns.innerHTML = btns;
+  }
+
+  function renderValidation() {
+    const result = Store.validateRoles();
+    const container = document.getElementById('roleValidationResult');
+    if (result.valid) {
+      container.classList.remove('hidden');
+      container.innerHTML = `
+        <div class="p-2 bg-green-50 border border-green-300 rounded text-xs text-green-700 font-medium">
+          &#10004; 모든 필수 역할이 지정되었습니다.
+        </div>`;
+    } else {
+      container.classList.remove('hidden');
+      container.innerHTML = `
+        <div class="p-2 bg-red-50 border border-red-300 rounded">
+          <p class="text-xs font-bold text-red-700 mb-1">&#9888; 역할 미지정 항목</p>
+          <ul class="space-y-0.5">
+            ${result.errors.map(e => `
+              <li class="text-xs text-red-600">&#8226; ${e.message}</li>
+            `).join('')}
+          </ul>
+          <p class="text-[10px] text-red-400 mt-1">모든 필수 역할을 지정해야 다음 단계로 진행할 수 있습니다.</p>
+        </div>`;
+    }
+  }
+
+  function toggleRole(role, memberIndex, checked) {
+    const assignments = Store.get('roleAssignments');
+    if (!assignments[role]) assignments[role] = [];
+
+    if (checked) {
+      if (!assignments[role].includes(memberIndex)) {
+        assignments[role].push(memberIndex);
+      }
+    } else {
+      assignments[role] = assignments[role].filter(i => i !== memberIndex);
+    }
+
+    Store.set('roleAssignments', { ...assignments });
   }
 
   function addRow() {
@@ -310,11 +521,19 @@ const SectionMembers = (() => {
 
   function remove(index) {
     const members = Store.get('members');
+    // 역할 지정에서도 해당 인덱스 제거 및 재조정
+    const assignments = Store.get('roleAssignments');
+    Object.keys(assignments).forEach(role => {
+      assignments[role] = assignments[role]
+        .filter(i => i !== index)
+        .map(i => i > index ? i - 1 : i);
+    });
+    Store.set('roleAssignments', { ...assignments });
     members.splice(index, 1);
     Store.set('members', [...members]);
   }
 
-  return { render, addRow, update, remove };
+  return { render, addRow, update, remove, toggleRole };
 })();
 
 
@@ -442,6 +661,140 @@ const SectionProcess = (() => {
 
 
 // =============================================
+// ⑤-B CSV 붙여넣기 (공정 + 위험성평가 자동 반영)
+// =============================================
+const SectionCSV = (() => {
+  function show() {
+    document.getElementById('processManualTab').classList.remove('border-header-navy', 'text-header-navy');
+    document.getElementById('processManualTab').classList.add('text-gray-500');
+    document.getElementById('processCsvTab').classList.add('border-header-navy', 'text-header-navy');
+    document.getElementById('processCsvTab').classList.remove('text-gray-500');
+    document.getElementById('processManualContent').classList.add('hidden');
+    document.getElementById('processCsvContent').classList.remove('hidden');
+  }
+
+  function showManual() {
+    document.getElementById('processCsvTab').classList.remove('border-header-navy', 'text-header-navy');
+    document.getElementById('processCsvTab').classList.add('text-gray-500');
+    document.getElementById('processManualTab').classList.add('border-header-navy', 'text-header-navy');
+    document.getElementById('processManualTab').classList.remove('text-gray-500');
+    document.getElementById('processCsvContent').classList.add('hidden');
+    document.getElementById('processManualContent').classList.remove('hidden');
+  }
+
+  function parseAndApply() {
+    const raw = document.getElementById('csvInput').value.trim();
+    if (!raw) return App.showToast('CSV 데이터를 붙여넣어주세요.', 'error');
+
+    const lines = raw.split('\n').filter(l => l.trim());
+    if (lines.length < 2) return App.showToast('헤더 포함 2줄 이상 입력해주세요.', 'error');
+
+    // 헤더 파싱
+    const header = lines[0].split(',').map(h => h.trim());
+    const idxMap = {};
+    header.forEach((h, i) => {
+      const lower = h.toLowerCase();
+      if (h === '공정' || lower.includes('공정')) idxMap.공정 = i;
+      if (h === '기인물' || lower.includes('기인물')) idxMap.기인물 = i;
+      if (h === '위험요인' || lower.includes('위험요인') || lower.includes('유해위험')) idxMap.위험요인 = i;
+      if (h === '개선대책' || h === '안전조치사항' || lower.includes('개선대책') || lower.includes('안전조치')) idxMap.개선대책 = i;
+    });
+
+    if (idxMap.공정 === undefined) return App.showToast('CSV에 "공정" 열을 찾을 수 없습니다.', 'error');
+
+    const dataRows = lines.slice(1);
+    const processes = Store.get('processes');
+    const rows = Store.get('rows');
+    let addedProcesses = 0;
+    let addedRows = 0;
+
+    dataRows.forEach(line => {
+      // CSV 파싱 (쉼표 안의 따옴표 처리)
+      const cols = parseCSVLine(line);
+
+      const stage = cols[idxMap.공정] || '';
+      const hazardName = idxMap.기인물 !== undefined ? (cols[idxMap.기인물] || '') : '';
+      const riskFactor = idxMap.위험요인 !== undefined ? (cols[idxMap.위험요인] || '') : '';
+      const safetyMeasure = idxMap.개선대책 !== undefined ? (cols[idxMap.개선대책] || '') : '';
+
+      if (!stage) return;
+
+      // 공정내용 반영 (중복 방지)
+      let existing = processes.find(p => p.stage === stage);
+      if (!existing) {
+        existing = { stage, content: '', hazards: [] };
+        processes.push(existing);
+        addedProcesses++;
+      }
+      // 기인물 추가
+      if (hazardName && !existing.hazards.includes(hazardName)) {
+        existing.hazards.push(hazardName);
+      }
+
+      // 위험성평가 행 반영
+      if (riskFactor || safetyMeasure) {
+        const no = nextRowNo(rows, stage);
+        rows.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random(),
+          no,
+          stage,
+          hazard: riskFactor,
+          safety: safetyMeasure,
+          freqBefore: 0, sevBefore: 0, riskBefore: 0,
+          freqAfter: 0, sevAfter: 0, riskAfter: 0,
+          tbmChk: false,
+          기인물: hazardName,
+        });
+        addedRows++;
+      }
+    });
+
+    Store.set('processes', [...processes]);
+    Store.set('rows', [...rows]);
+
+    document.getElementById('csvInput').value = '';
+    App.showToast(`CSV 반영 완료!\n공정: ${addedProcesses}건 추가\n위험성평가: ${addedRows}건 추가`, 'success');
+
+    // 수동 탭으로 전환
+    showManual();
+  }
+
+  function nextRowNo(rows, stageName) {
+    const sameStage = rows.filter(r => r.stage === stageName);
+    if (sameStage.length > 0) {
+      const parts = sameStage[0].no.split('-').map(Number);
+      const major = parts[0] || 1;
+      const maxMinor = Math.max(...sameStage.map(r => +(r.no.split('-')[1] || 0)));
+      return `${major}-${maxMinor + 1}`;
+    }
+    const majors = [...new Set(rows.map(r => +(r.no.split('-')[0] || 0)))];
+    return `${(majors.length ? Math.max(...majors) : 0) + 1}-1`;
+  }
+
+  function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  return { show, showManual, parseAndApply };
+})();
+
+
+// =============================================
 // ⑥ 위험성평가 본체 (AB7) + SIF 추천 팝업
 // =============================================
 const SectionAssessment = (() => {
@@ -478,7 +831,7 @@ const SectionAssessment = (() => {
       const gradeBefore = Store.getRiskGrade(riskBefore);
       const gradeAfter = Store.getRiskGrade(riskAfter);
       const stageHazards = stageHazardMap[r.stage] || [];
-      const hasHazard = stageHazards.length > 0 || r.기인물;
+      const hasHazard = stageHazards.length > 0 || r.기인물 || Store.getSelectedHazards().length > 0;
 
       return `
         <tr class="border-b border-gray-100 hover:bg-gray-50">
@@ -629,6 +982,7 @@ const SifPopup = (() => {
     targetField = field;
     selectedItems.clear();
     currentTab = field === 'safety' ? 'safety' : (field === 'hazard' ? 'hazards' : 'cases');
+    currentHazardName = '';
 
     const rows = Store.get('rows');
     const row = rows[rowIndex];
@@ -641,13 +995,12 @@ const SifPopup = (() => {
       }
     }
 
-    if (!currentHazardName) {
-      const selected = Store.getSelectedHazards();
-      if (selected.length > 0) currentHazardName = selected[0].기인물;
-    }
+    // 특정 기인물이 없으면 전체 선택된 기인물 사용 (팝업에서 모든 데이터 표시)
+    const selected = Store.getSelectedHazards();
+    const titleName = currentHazardName || (selected.length > 0 ? `선택된 ${selected.length}개 기인물` : '(없음)');
 
     document.getElementById('sifPopupTitle').textContent =
-      `SIF 사고사례 기반 추천 — 기인물: ${currentHazardName || '(없음)'}`;
+      `SIF 사고사례 기반 추천 — ${titleName}`;
     document.getElementById('sifPopup').classList.remove('hidden');
 
     switchTab(currentTab);
@@ -685,8 +1038,9 @@ const SifPopup = (() => {
   }
 
   function renderCases(container) {
+    try {
     const selectedHazards = Store.getSelectedHazards();
-    const hazardNames = currentHazardName ? [currentHazardName] : selectedHazards.map(h => h.기인물);
+    const hazardNames = currentHazardName ? [currentHazardName] : (selectedHazards.length > 0 ? selectedHazards.map(h => h.기인물) : HAZARD_MASTER.slice(0, 12).map(h => h.기인물));
 
     let allCases = [];
     hazardNames.forEach(name => {
@@ -733,11 +1087,13 @@ const SifPopup = (() => {
         `).join('')}
       </div>
     `;
+    } catch(e) { container.innerHTML = '<p class="text-red-500 p-4">렌더링 오류: ' + e.message + '</p>'; console.error('renderCases error:', e); }
   }
 
   function renderHazardSuggestions(container) {
+    try {
     const selectedHazards = Store.getSelectedHazards();
-    const hazardNames = currentHazardName ? [currentHazardName] : selectedHazards.map(h => h.기인물);
+    const hazardNames = currentHazardName ? [currentHazardName] : (selectedHazards.length > 0 ? selectedHazards.map(h => h.기인물) : HAZARD_MASTER.slice(0, 12).map(h => h.기인물));
 
     let allSuggestions = [];
     hazardNames.forEach(name => {
@@ -768,11 +1124,13 @@ const SifPopup = (() => {
         `).join('')}
       </div>
     `;
+    } catch(e) { container.innerHTML = '<p class="text-red-500 p-4">렌더링 오류: ' + e.message + '</p>'; console.error('renderHazardSuggestions error:', e); }
   }
 
   function renderSafetySuggestions(container) {
+    try {
     const selectedHazards = Store.getSelectedHazards();
-    const hazardNames = currentHazardName ? [currentHazardName] : selectedHazards.map(h => h.기인물);
+    const hazardNames = currentHazardName ? [currentHazardName] : (selectedHazards.length > 0 ? selectedHazards.map(h => h.기인물) : HAZARD_MASTER.slice(0, 12).map(h => h.기인물));
 
     let allSuggestions = [];
     hazardNames.forEach(name => {
@@ -803,6 +1161,7 @@ const SifPopup = (() => {
         `).join('')}
       </div>
     `;
+    } catch(e) { container.innerHTML = '<p class="text-red-500 p-4">렌더링 오류: ' + e.message + '</p>'; console.error('renderSafetySuggestions error:', e); }
   }
 
   const _textMap = {};
@@ -903,14 +1262,14 @@ const SifPopup = (() => {
 // ⑦ 공정별 위험성 분석 (AL7) + ⑧ 차트 + KPI
 // =============================================
 const SectionAnalysis = (() => {
-  let chartH = null, chartV = null;
+  let chartH = null, chartV = null, chartHazardBar = null;
 
   function render() {
     const analysis = Store.getStageAnalysis();
     const tbody = document.getElementById('analysisTableBody');
 
     if (analysis.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">위험성평가 데이터를 입력하면 자동 집계됩니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400">위험성평가 데이터를 입력하면 자동 집계됩니다.</td></tr>';
     } else {
       tbody.innerHTML = analysis.map(s => `
         <tr class="border-b border-gray-100 ${s.avgBefore >= 8 ? 'bg-red-50' : ''}">
@@ -920,12 +1279,6 @@ const SectionAnalysis = (() => {
           <td class="px-3 py-2 text-center font-mono">${s.avgBefore}</td>
           <td class="px-3 py-2 text-center font-mono text-blue-600">${s.avgAfter}</td>
           <td class="px-3 py-2 text-center text-green-600">${s.reduction > 0 ? `&darr;${(s.reduction * 100).toFixed(0)}%` : '-'}</td>
-          <td class="px-3 py-2 text-center">
-            <span class="px-2 py-0.5 rounded text-xs font-bold
-              ${s.grade === '고위험' ? 'bg-red-100 text-risk-vh' : s.grade === '중위험' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">
-              ${s.grade}
-            </span>
-          </td>
         </tr>
       `).join('');
     }
@@ -938,9 +1291,11 @@ const SectionAnalysis = (() => {
   function renderKPI() {
     const rows = Store.get('rows');
     const analysis = Store.getStageAnalysis();
+    const members = Store.get('members').filter(m => m.name);
     const totalStages = analysis.length;
     const totalHazards = rows.length;
-    const highStages = analysis.filter(s => s.avgBefore >= 8).length;
+    // 고위험공정: 해당 공정 내 1건이라도 riskBefore >= 8인 행이 있는 공정
+    const highStages = analysis.filter(s => s.highCount > 0).length;
     const highRate = totalStages > 0 ? (highStages / totalStages * 100).toFixed(1) : 0;
     const risksBefore = rows.map(r => r.riskBefore).filter(v => v > 0);
     const risksAfter = rows.map(r => r.riskAfter).filter(v => v > 0);
@@ -952,6 +1307,7 @@ const SectionAnalysis = (() => {
     document.getElementById('kpi-hazards').textContent = totalHazards;
     document.getElementById('kpi-high').textContent = highStages;
     document.getElementById('kpi-high-rate').textContent = `(${highRate}%)`;
+    document.getElementById('kpi-workers').textContent = members.length;
     document.getElementById('kpi-avg-before').textContent = avgBefore;
     document.getElementById('kpi-avg-after').textContent = avgAfter;
     document.getElementById('kpi-reduction').textContent = `감소율 ${reduction}%`;
@@ -959,6 +1315,38 @@ const SectionAnalysis = (() => {
 
   function renderCharts() {
     const analysis = Store.getStageAnalysis();
+
+    // 기인물별 사고사망 바차트 (선택된 기인물, 사고건수 내림차순)
+    const selectedHazards = Store.getSelectedHazards().sort((a, b) => b.총사고건수 - a.총사고건수);
+    const ctxHaz = document.getElementById('chart-hazard-bar');
+    if (chartHazardBar) chartHazardBar.destroy();
+    if (selectedHazards.length > 0) {
+      chartHazardBar = new Chart(ctxHaz, {
+        type: 'bar',
+        data: {
+          labels: selectedHazards.map(h => h.기인물),
+          datasets: [{
+            label: '사고사망(건)',
+            data: selectedHazards.map(h => h.총사고건수),
+            backgroundColor: selectedHazards.map(h =>
+              h.구분 === '12대기인물' ? '#C00000' : '#E26B0A'
+            ),
+            borderRadius: 2,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { font: { size: 7 } } },
+            y: { ticks: { font: { size: 7 } } },
+          },
+        },
+      });
+    }
+
     if (analysis.length === 0) return;
 
     const ctxH = document.getElementById('chart-horizontal-bar');
@@ -968,15 +1356,19 @@ const SectionAnalysis = (() => {
       data: {
         labels: analysis.map(s => s.name),
         datasets: [
-          { label: '전체 위험요인', data: analysis.map(s => s.total), backgroundColor: '#BDD7EE', borderRadius: 4 },
-          { label: '고위험(>=8)', data: analysis.map(s => s.highCount), backgroundColor: '#C00000', borderRadius: 4 },
+          { label: '전체', data: analysis.map(s => s.total), backgroundColor: '#BDD7EE', borderRadius: 2 },
+          { label: '고위험', data: analysis.map(s => s.highCount), backgroundColor: '#C00000', borderRadius: 2 },
         ],
       },
       options: {
         indexAxis: 'y',
         responsive: true,
-        plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
-        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { font: { size: 7 }, boxWidth: 8 } } },
+        scales: {
+          x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 7 } } },
+          y: { ticks: { font: { size: 7 } } },
+        },
       },
     });
 
@@ -988,25 +1380,28 @@ const SectionAnalysis = (() => {
         labels: analysis.map(s => s.name),
         datasets: [
           {
-            label: '개선 전',
+            label: '전',
             data: analysis.map(s => s.avgBefore),
             backgroundColor: analysis.map(s =>
               s.avgBefore >= 12 ? '#C00000' : s.avgBefore >= 8 ? '#E26B0A' : s.avgBefore >= 4 ? '#FFC000' : '#375623'
             ),
-            borderRadius: 4,
+            borderRadius: 2,
           },
-          { label: '개선 후', data: analysis.map(s => s.avgAfter), backgroundColor: '#93C5FD', borderRadius: 4 },
+          { label: '후', data: analysis.map(s => s.avgAfter), backgroundColor: '#93C5FD', borderRadius: 2 },
         ],
       },
       options: {
         responsive: true,
-        plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
-        scales: { y: { beginAtZero: true, max: 20, ticks: { stepSize: 2 } } },
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { font: { size: 7 }, boxWidth: 8 } } },
+        scales: {
+          y: { beginAtZero: true, max: 20, ticks: { stepSize: 4, font: { size: 7 } } },
+          x: { ticks: { font: { size: 7 } } },
+        },
       },
     });
 
-    renderDonut('chart-donut-before', Store.getRiskDistribution('before'), '개선 전');
-    renderDonut('chart-donut-after', Store.getRiskDistribution('after'), '개선 후');
+    // 등급분포 도넛차트 제거됨
   }
 
   function renderDonut(canvasId, dist, label) {
@@ -1016,14 +1411,15 @@ const SectionAnalysis = (() => {
     new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: ['매우위험(VH)', '고위험(H)', '중위험(M)', '저위험(L)'],
+        labels: ['VH', 'H', 'M', 'L'],
         datasets: [{ data: [dist.VH, dist.H, dist.M, dist.L], backgroundColor: ['#C00000', '#E26B0A', '#FFC000', '#375623'] }],
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
-          title: { display: true, text: `${label} (총 ${dist.total}건)`, font: { size: 12 } },
-          legend: { position: 'bottom', labels: { font: { size: 10 } } },
+          title: { display: true, text: `${label}(${dist.total})`, font: { size: 8 } },
+          legend: { position: 'bottom', labels: { font: { size: 7 }, boxWidth: 6, padding: 4 } },
         },
       },
     });
@@ -1036,24 +1432,19 @@ const SectionAnalysis = (() => {
     const panel = document.getElementById('highRiskList');
 
     if (highRisk.length === 0) {
-      panel.innerHTML = '<p class="text-gray-400">위험성평가 데이터를 입력하면 고위험 공정이 표시됩니다.</p>';
+      panel.innerHTML = '<p class="text-[10px] text-gray-400">데이터 입력 시 표시</p>';
       return;
     }
 
     const totalStages = analysis.length;
     panel.innerHTML = `
-      <p class="text-sm text-gray-600 mb-2">전체 ${totalStages}개 작업단계 중 <strong class="text-risk-vh">${highRisk.length}개</strong> 고위험 (${(highRisk.length / totalStages * 100).toFixed(1)}%)</p>
+      <p class="text-[10px] text-gray-600 mb-1">${totalStages}개 중 <strong class="text-risk-vh">${highRisk.length}개</strong> 고위험</p>
       ${highRisk.map(s => {
-        const top2 = rows.filter(r => r.stage === s.name).sort((a, b) => b.riskBefore - a.riskBefore).slice(0, 2).map(r => r.hazard).filter(Boolean);
         return `
-          <div class="p-3 bg-white rounded border border-red-200">
-            <div class="flex items-center gap-2">
-              <span class="text-risk-vh font-bold">&#9679;</span>
-              <strong>${s.name}</strong>
-              <span class="text-xs text-gray-500">평균위험도 ${s.avgBefore}</span>
-              <span class="text-xs text-gray-500">| 위험요인 ${s.total}건 중 ${s.highCount}건 고위험 (${s.total > 0 ? (s.highCount / s.total * 100).toFixed(0) : 0}%)</span>
-            </div>
-            ${top2.length > 0 ? `<p class="text-xs text-gray-600 ml-5 mt-1">&rarr; 주요 위험: ${top2.join(', ')}</p>` : ''}
+          <div class="p-1.5 bg-white rounded border border-red-200 text-[10px]">
+            <span class="text-risk-vh font-bold">&#9679;</span>
+            <strong>${s.name}</strong>
+            <span class="text-gray-500">avg ${s.avgBefore} / ${s.highCount}건</span>
           </div>
         `;
       }).join('')}
@@ -1069,14 +1460,14 @@ const SectionAnalysis = (() => {
 // =============================================
 const SectionTBM = (() => {
   const CHECKLIST_ITEMS = [
-    { id: 'q1', text: '작업 전 안전교육을 실시하였는가?' },
-    { id: 'q2', text: '개인보호구를 정확히 착용하였는가?' },
-    { id: 'q3', text: '작업도구 및 장비 상태를 점검하였는가?' },
-    { id: 'q4', text: '작업장 정리정돈 상태는 양호한가?' },
-    { id: 'q5', text: '안전시설물(난간, 덮개 등)은 설치되었는가?' },
-    { id: 'q6', text: '위험구역 출입통제 조치를 하였는가?' },
-    { id: 'q7', text: '비상연락망 및 응급조치 방법을 숙지하였는가?' },
-    { id: 'q8', text: '작업허가서(안전작업허가)를 발급받았는가?' },
+    { id: 'q1', text: '작업에 필요한 안전작업허가서는 발행되었는가?' },
+    { id: 'q2', text: '작업조건과 작업범위는 검토되었는가?' },
+    { id: 'q3', text: '유해·위험요인에 대하여 교육 및 안전조치는 하였는가?' },
+    { id: 'q4', text: '작업에 필요한 안전한 작업방법은 알고 있는가?(장비, 공구사용법 등)' },
+    { id: 'q5', text: '도면 및 정비절차서는 검토하였는가?' },
+    { id: 'q6', text: '사용장비에 대한 안전확인점검 실시여부를 확인 하였는가?' },
+    { id: 'q7', text: '작업대상 설비는 계통과 격리되어 위험은 없는가?' },
+    { id: 'q8', text: '안전사고 발생시 비상조치계획을 알고 있는가?' },
   ];
 
   function render() {

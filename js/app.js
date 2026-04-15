@@ -20,8 +20,8 @@ const App = (() => {
     // Store 이벤트 → 연쇄 반응 바인딩
     bindReactions();
 
-    // 네비게이션 스크롤 하이라이트
-    bindNavigation();
+    // 스텝 위자드 초기화
+    StepWizard.init();
 
     console.log('[App] 위험성평가 · TBM 웹앱 초기화 완료');
   }
@@ -35,12 +35,13 @@ const App = (() => {
    * - processes 변경 → 위험성평가 드롭다운 갱신
    */
   function bindReactions() {
-    // 기인물 변경 → 5단 연쇄
+    // 기인물 변경 → 5단 연쇄 + 차트 갱신
     Store.on('hazards', () => {
       SectionHazard.render();
       SectionWorkType.render();
       SectionProcess.render();
       SectionOverview.render();
+      SectionAnalysis.render();
     });
 
     // 참여자 변경
@@ -48,6 +49,7 @@ const App = (() => {
       SectionMembers.render();
       SectionOverview.render();
       SectionTBM.render();
+      SectionAnalysis.render();
     });
 
     // 위험성평가 행 변경
@@ -63,11 +65,17 @@ const App = (() => {
       SectionTBM.render();
     });
 
-    // workTypes 변경 → TBM 안전허가
+    // workTypes 변경 → TBM 안전허가 + 역할 지정 패널 갱신
     Store.on('workTypes', () => {
       SectionWorkType.render();
+      SectionMembers.render();
       SectionOverview.render();
       SectionTBM.render();
+    });
+
+    // 역할 지정 변경
+    Store.on('roleAssignments', () => {
+      SectionMembers.render();
     });
 
     // 데이터 로드 시 TBM 전체 갱신
@@ -88,31 +96,6 @@ const App = (() => {
     });
   }
 
-  /**
-   * 네비게이션 스크롤 하이라이트
-   */
-  function bindNavigation() {
-    const navLinks = document.querySelectorAll('.nav-link');
-    const sections = {};
-    navLinks.forEach(link => {
-      const id = link.dataset.section;
-      if (id) sections[id] = document.getElementById(id);
-    });
-
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          navLinks.forEach(l => l.classList.remove('bg-blue-50', 'text-header-navy', 'font-semibold', 'section-active'));
-          const active = document.querySelector(`.nav-link[data-section="${entry.target.id}"]`);
-          if (active) {
-            active.classList.add('bg-blue-50', 'text-header-navy', 'font-semibold', 'section-active');
-          }
-        }
-      });
-    }, { rootMargin: '-20% 0px -60% 0px' });
-
-    Object.values(sections).forEach(sec => { if (sec) observer.observe(sec); });
-  }
 
   // ============ 저장 / 불러오기 / JSON ============
 
@@ -128,6 +111,16 @@ const App = (() => {
     if (!관리번호) return showToast('관리번호를 입력해주세요.', 'error');
     if (!작업명) return showToast('작업명을 입력해주세요.', 'error');
     if (rows.length === 0) return showToast('위험성평가 1건 이상 필요합니다.', 'error');
+
+    // 필수 역할 검증
+    const roleValidation = Store.validateRoles();
+    if (!roleValidation.valid) {
+      const msgs = roleValidation.errors.map(e => `  - ${e.message}`).join('\n');
+      if (!confirm(`필수 역할이 미지정되어 있습니다:\n${msgs}\n\n그래도 저장하시겠습니까?`)) {
+        document.getElementById('sec-members').scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
 
     const data = Store.exportData();
     data.savedAt = new Date().toISOString();

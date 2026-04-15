@@ -1,6 +1,9 @@
 /**
- * PDF 인쇄용 붙임서식 생성 (서식3 + TBM 양식 기반)
- * - window.print() 호출 전에 인쇄 전용 컨테이너를 동적 생성
+ * PDF 인쇄용 서식 생성 — KOEN [분당지침-안전-036] 위험성평가 서식 기반
+ * - 1쪽: 수시 위험성평가 (작업개요 + 공정 6행/페이지)
+ * - 2쪽~: 위험성평가표 (헤더 반복 페이지네이션, 후(전) 형식)
+ * - 3쪽: 위험성평가 실시결과 확인 (3단 30명)
+ * - 4쪽~: TBM 일지
  */
 const PrintManager = (() => {
   function print() {
@@ -11,29 +14,31 @@ const PrintManager = (() => {
     container.id = 'printContainer';
     container.className = 'print-only';
 
-    container.innerHTML = [
-      page1_작업개요(),
-      page2_위험성평가표(),
-      page3_감소대책(),
-      page4_개선결과(),
-      page5_결과확인(),
-      page6_TBM1면(),
-      page7_TBM2면(),
-    ].join('');
+    const pages = [
+      ...pages_수시위험성평가(),
+      ...pages_위험성평가표(),
+      ...pages_실시결과확인(),
+      page_TBM1면(),
+      page_TBM2면(),
+    ];
 
+    container.innerHTML = pages.join('');
     document.body.appendChild(container);
     window.print();
   }
 
-  // === 공통 스타일 ===
+  // ============================================================
+  //  공통 스타일
+  // ============================================================
   const S = {
-    table: 'width:100%; border-collapse:collapse; font-size:9pt;',
-    td: 'border:1px solid #000; padding:3px 5px; font-size:9pt;',
-    th: 'border:1px solid #000; padding:3px 5px; font-size:9pt; background:#E3F4E3; font-weight:bold; text-align:center;',
-    thNavy: 'border:1px solid #000; padding:3px 5px; font-size:9pt; background:#1F3864; color:white; font-weight:bold; text-align:center;',
-    title: 'text-align:center; font-size:16pt; font-weight:bold; margin-bottom:10px; font-family:"Noto Serif KR",serif;',
-    subtitle: 'font-size:10pt; font-weight:bold; margin:8px 0 4px;',
-    stamp: 'border:1px solid #000; padding:2px; font-size:8pt; text-align:center;',
+    table: 'width:100%; border-collapse:collapse; font-size:8.5pt;',
+    td: 'border:1px solid #000; padding:2px 3px; font-size:8.5pt;',
+    th: 'border:1px solid #000; padding:2px 3px; font-size:8.5pt; background:#E3F4E3; font-weight:bold; text-align:center;',
+    thNavy: 'border:1px solid #000; padding:2px 3px; font-size:8.5pt; background:#1F3864; color:white; font-weight:bold; text-align:center;',
+    title: 'text-align:center; font-size:16pt; font-weight:bold; margin-bottom:4px; font-family:"Noto Serif KR",serif; letter-spacing:8px;',
+    subtitle: 'font-size:9pt; font-weight:bold; margin:4px 0 2px;',
+    stamp: 'border:1px solid #000; padding:1px; font-size:7pt; text-align:center;',
+    pageNum: 'text-align:center; font-size:7pt; color:#666; margin-top:2px;',
   };
 
   function riskColor(v) {
@@ -44,329 +49,359 @@ const PrintManager = (() => {
     return '';
   }
 
-  /** 결재란 생성 */
-  function 결재란(titles) {
+  // ============================================================
+  //  결재란
+  // ============================================================
+
+  /** KOEN 서식: 좌측 «승인» 협력기업 + 우측 «확인» 남동발전 */
+  function 결재란_KOEN() {
     return `
-      <table style="border-collapse:collapse; float:right; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+        <table style="border-collapse:collapse;">
+          <tr>
+            <td style="${S.stamp} background:#E3F4E3; font-weight:bold; font-size:6pt;" rowspan="2">≪승인≫<br>협 력<br>기 업</td>
+            <td style="${S.stamp} width:45px; background:#F3F4F6; font-size:7pt;">담 당</td>
+            <td style="${S.stamp} width:45px; background:#F3F4F6; font-size:7pt;">과 장</td>
+            <td style="${S.stamp} width:45px; background:#F3F4F6; font-size:7pt;">팀 장</td>
+          </tr>
+          <tr>
+            <td style="${S.stamp} height:30px; width:45px;"></td>
+            <td style="${S.stamp} height:30px; width:45px;"></td>
+            <td style="${S.stamp} height:30px; width:45px;"></td>
+          </tr>
+        </table>
+        <table style="border-collapse:collapse;">
+          <tr>
+            <td style="${S.stamp} background:#E3F4E3; font-weight:bold; font-size:6pt;" rowspan="2">≪확인≫<br>남 동<br>발 전</td>
+            <td style="${S.stamp} width:45px; background:#F3F4F6;"></td>
+          </tr>
+          <tr>
+            <td style="${S.stamp} height:30px; width:45px;"></td>
+          </tr>
+        </table>
+      </div>
+    `;
+  }
+
+  /** TBM 결재란 */
+  function 결재란TBM() {
+    return `
+      <table style="border-collapse:collapse; float:right; margin-bottom:3px;">
         <tr>
-          <td style="${S.stamp} background:#E3F4E3; font-weight:bold;" rowspan="2">결<br>재</td>
-          ${titles.map(t => `<td style="${S.stamp} width:50px; background:#F3F4F6;">${t}</td>`).join('')}
+          <td style="${S.stamp} background:#E3F4E3; font-weight:bold; font-size:7pt;" rowspan="2">결<br>재</td>
+          <td style="${S.stamp} width:50px; background:#F3F4F6; font-size:7pt;">담 당</td>
+          <td style="${S.stamp} width:50px; background:#F3F4F6; font-size:7pt;">관리감독자</td>
+          <td style="${S.stamp} width:50px; background:#F3F4F6; font-size:7pt;">소 장</td>
         </tr>
         <tr>
-          ${titles.map(() => `<td style="${S.stamp} height:40px; width:50px;"></td>`).join('')}
+          <td style="${S.stamp} height:28px; width:50px;"></td>
+          <td style="${S.stamp} height:28px; width:50px;"></td>
+          <td style="${S.stamp} height:28px; width:50px;"></td>
         </tr>
       </table>
       <div style="clear:both;"></div>
     `;
   }
 
-  // === 1쪽: 작업개요 (서식3 기반) ===
-  function page1_작업개요() {
+  // ============================================================
+  //  1쪽: 수시 위험성평가 (페이지당 공정 6행, 넘치면 새 페이지)
+  // ============================================================
+  function pages_수시위험성평가() {
     const ov = Store.get('overview');
+    const processes = Store.get('processes');
+    const members = Store.get('members').filter(m => m.name);
     const workTypes = Store.classifyWorkTypes();
     const workTypeChecks = workTypes.map(t =>
       `${t.result === '해당' ? '■' : '□'} ${t.id}`
-    ).join('  ');
+    ).join('&nbsp;&nbsp;');
 
-    return `
-      <div class="print-page" style="padding:0;">
-        ${결재란(['승인', '담당', '차장', '부장'])}
-        <div style="${S.title}">위험성평가 작업개요</div>
-        <table style="${S.table}">
-          <tr>
-            <td style="${S.th} width:18%;">관리번호</td>
-            <td style="${S.td} width:32%;">${Store.get('관리번호') || ''}</td>
-            <td style="${S.th} width:18%;">회사(부서)명</td>
-            <td style="${S.td} width:32%;">${ov.회사부서명 || ''}</td>
+    const ROWS_PER_PAGE = 6;
+    const totalPages = Math.max(1, Math.ceil(processes.length / ROWS_PER_PAGE));
+    const pages = [];
+
+    for (let page = 0; page < totalPages; page++) {
+      const startIdx = page * ROWS_PER_PAGE;
+      const pageProcesses = processes.slice(startIdx, startIdx + ROWS_PER_PAGE);
+
+      // 공정 행 (빈 행으로 6행 채우기)
+      const processRows = [];
+      for (let i = 0; i < ROWS_PER_PAGE; i++) {
+        const p = pageProcesses[i];
+        const num = startIdx + i + 1;
+        const hazardArr = p ? (p.hazards || (p.hazard ? [p.hazard] : [])) : [];
+        processRows.push(`
+          <tr style="height:22px;">
+            <td style="${S.td} text-align:center; width:35px;">${p ? num : ''}</td>
+            <td style="${S.td} width:25%;">${p ? (p.stage || '') : ''}</td>
+            <td style="${S.td}">${p ? (p.content || '') : ''}</td>
+            <td style="${S.td} width:20%; font-size:7.5pt;">${p ? hazardArr.join(', ') : ''}</td>
           </tr>
+        `);
+      }
+
+      let html = '<div class="print-page" style="padding:0;">';
+
+      if (page === 0) {
+        // 첫 페이지: 결재란 + 작업개요 전체
+        html += 결재란_KOEN();
+        html += `<div style="${S.title}">수 시  위 험 성 평 가</div>`;
+        html += `
+          <table style="${S.table}">
+            <tr>
+              <td style="${S.th} width:14%;">작 업 명</td>
+              <td style="${S.td} width:36%;">${Store.get('작업명') || ''}</td>
+              <td style="${S.th} width:14%;">평가 일자</td>
+              <td style="${S.td} width:36%;">${ov.작성일자 || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">작업 기간</td>
+              <td style="${S.td}">${ov.작업기간 || ''}</td>
+              <td style="${S.th}">소 속</td>
+              <td style="${S.td}">${ov.회사부서명 || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">작업 장소</td>
+              <td style="${S.td}">${ov.작업장소 || ''}</td>
+              <td style="${S.th}">작업 인원</td>
+              <td style="${S.td}">${members.length}명</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">필요한 보호구</td>
+              <td style="${S.td}" colspan="3">${ov.필요한보호구 || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">필요한 공기구</td>
+              <td style="${S.td}" colspan="3">${ov.필요한공기구 || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">투입 중장비</td>
+              <td style="${S.td}" colspan="3">${Store.getEquipmentText() || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">위험성평가자</td>
+              <td style="${S.td}" colspan="3">${Store.getMembersText() || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">작업절차서</td>
+              <td style="${S.td}" colspan="3">${ov.작업절차서 || ''}</td>
+            </tr>
+            <tr>
+              <td style="${S.th}">작업분류</td>
+              <td style="${S.td} font-size:8pt;" colspan="3">${workTypeChecks}</td>
+            </tr>
+          </table>
+        `;
+      } else {
+        // 후속 페이지: 제목만 간단히
+        html += `<div style="text-align:center; font-size:12pt; font-weight:bold; margin-bottom:8px;">수시 위험성평가 (계속)</div>`;
+      }
+
+      // 공정 테이블 (모든 페이지 공통)
+      html += `
+        <table style="${S.table}; margin-top:3px;">
           <tr>
-            <td style="${S.th}">작업명</td>
-            <td style="${S.td}" colspan="3">${Store.get('작업명') || ''}</td>
+            <td style="${S.th} width:35px;">순번</td>
+            <td style="${S.th} width:25%;">작 업 단 계</td>
+            <td style="${S.th}">작 업 내 용</td>
+            <td style="${S.th} width:20%;">기 인 물</td>
           </tr>
-          <tr>
-            <td style="${S.th}">작업내용</td>
-            <td style="${S.td}" colspan="3">${Store.get('작업내용') || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">작성일자</td>
-            <td style="${S.td}">${ov.작성일자 || ''}</td>
-            <td style="${S.th}">작성자</td>
-            <td style="${S.td}">${ov.작성자 || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">작업기간(시간)</td>
-            <td style="${S.td}" colspan="3">${ov.작업기간 || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">작업장소</td>
-            <td style="${S.td}" colspan="3">${ov.작업장소 || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">작업분류</td>
-            <td style="${S.td} font-size:8pt;" colspan="3">${workTypeChecks}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">유사재해/<br>아차사고사례</td>
-            <td style="${S.td}" colspan="3">
-              ${Store.getSelectedHazards().length > 0
-                ? `SIF DB 연계 기인물 ${Store.getSelectedHazards().length}개, 총 ${Store.getSelectedHazards().reduce((s, h) => s + h.총사고건수, 0).toLocaleString()}건 사고사례 참조`
-                : '-'}
-            </td>
-          </tr>
-          <tr>
-            <td style="${S.th}">중점관리사항</td>
-            <td style="${S.td}" colspan="3">${ov.중점관리사항 || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">보호구</td>
-            <td style="${S.td}" colspan="3">${ov.필요한보호구 || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">공기구</td>
-            <td style="${S.td}" colspan="3">${ov.필요한공기구 || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">투입중장비</td>
-            <td style="${S.td}" colspan="3">${Store.getEquipmentText() || '-'}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">평가참여자</td>
-            <td style="${S.td}" colspan="3">${Store.getMembersText() || '-'}</td>
-          </tr>
+          ${processRows.join('')}
         </table>
-      </div>
-    `;
+      `;
+
+      // 페이지 번호
+      html += `<div style="${S.pageNum}">- ${page + 1} -</div>`;
+      html += '</div>';
+      pages.push(html);
+    }
+
+    return pages;
   }
 
-  // === 2쪽: 위험성평가표 (서식3 기반) ===
-  function page2_위험성평가표() {
+  // ============================================================
+  //  2쪽~: 위험성평가표 (헤더 반복 페이지네이션, 후(전) 형식)
+  // ============================================================
+  function pages_위험성평가표() {
     const rows = Store.get('rows');
-    return `
-      <div class="print-page">
-        <div style="${S.title}">위험성평가표</div>
-        <p style="font-size:8pt; text-align:right; margin-bottom:4px;">관리번호: ${Store.get('관리번호') || ''}</p>
+    if (rows.length === 0) return [];
+
+    const ROWS_PER_PAGE = 20;
+    const totalPages = Math.ceil(rows.length / ROWS_PER_PAGE);
+    const pages = [];
+
+    function headerHTML() {
+      return `
+        <div style="${S.title}">위 험 성 평 가 표</div>
         <table style="${S.table}">
           <thead>
             <tr>
-              <th style="${S.thNavy}" rowspan="2">관리<br>번호</th>
-              <th style="${S.thNavy}" rowspan="2">작업(공정)단계</th>
-              <th style="${S.thNavy}" rowspan="2">유해위험요인</th>
-              <th style="${S.thNavy}" rowspan="2">현재<br>안전조치사항</th>
-              <th style="${S.thNavy}" colspan="3">위험성 추정(전)</th>
-              <th style="${S.thNavy}" rowspan="2">추가<br>안전조치사항</th>
-              <th style="${S.thNavy}" colspan="3">위험성 추정(후)</th>
-              <th style="${S.thNavy}" rowspan="2">조치<br>일자</th>
-              <th style="${S.thNavy}" rowspan="2">담당자</th>
+              <th style="${S.th} width:35px;" rowspan="2">관리<br>번호</th>
+              <th style="${S.th} width:15%;" rowspan="2">세부 작업단계</th>
+              <th style="${S.th} width:22%;" rowspan="2">유해·위험요인</th>
+              <th style="${S.th}" rowspan="2">현재 안전조치사항</th>
+              <th style="${S.th}" colspan="3">현재 위험성</th>
+              <th style="${S.th} width:40px;" rowspan="2">현장<br>확인</th>
             </tr>
             <tr>
-              <th style="${S.thNavy} font-size:7pt; width:24px;">가능성<br>(빈도)</th>
-              <th style="${S.thNavy} font-size:7pt; width:24px;">중대성<br>(강도)</th>
-              <th style="${S.thNavy} font-size:7pt; width:28px;">위험성</th>
-              <th style="${S.thNavy} font-size:7pt; width:24px;">가능성<br>(빈도)</th>
-              <th style="${S.thNavy} font-size:7pt; width:24px;">중대성<br>(강도)</th>
-              <th style="${S.thNavy} font-size:7pt; width:28px;">위험성</th>
+              <th style="${S.th} font-size:7pt; width:32px;">가능성<br>(빈도)</th>
+              <th style="${S.th} font-size:7pt; width:32px;">중대성<br>(강도)</th>
+              <th style="${S.th} font-size:7pt; width:36px;">위험성</th>
             </tr>
           </thead>
+      `;
+    }
+
+    for (let page = 0; page < totalPages; page++) {
+      const startIdx = page * ROWS_PER_PAGE;
+      const pageRows = rows.slice(startIdx, startIdx + ROWS_PER_PAGE);
+
+      const rowsHTML = pageRows.map(r => {
+        const fb = r.freqBefore || 0;
+        const sb = r.sevBefore || 0;
+        const fa = r.freqAfter || 0;
+        const sa = r.sevAfter || 0;
+        const rb = r.riskBefore || fb * sb;
+        const ra = r.riskAfter || fa * sa;
+
+        // 후(전) 형식: 개선후값(개선전값)
+        const freqDisplay = fa ? `${fa}(${fb})` : (fb ? `(${fb})` : '');
+        const sevDisplay = sa ? `${sa}(${sb})` : (sb ? `(${sb})` : '');
+        const riskDisplay = ra ? `${ra}(${rb})` : (rb ? `(${rb})` : '');
+
+        return `
+          <tr>
+            <td style="${S.td} text-align:center; font-size:7pt;">${r.no || ''}</td>
+            <td style="${S.td} font-size:7.5pt;">${r.stage || ''}</td>
+            <td style="${S.td} font-size:7.5pt;">${r.hazard || ''}</td>
+            <td style="${S.td} font-size:7.5pt;">${r.safety || ''}</td>
+            <td style="${S.td} text-align:center; font-size:7.5pt;">${freqDisplay}</td>
+            <td style="${S.td} text-align:center; font-size:7.5pt;">${sevDisplay}</td>
+            <td style="${S.td} text-align:center; font-size:7.5pt; ${riskColor(ra || rb)}">${riskDisplay}</td>
+            <td style="${S.td}"></td>
+          </tr>
+        `;
+      }).join('');
+
+      // 빈 행으로 페이지 채우기
+      const emptyCount = ROWS_PER_PAGE - pageRows.length;
+      const emptyRows = emptyCount > 0
+        ? Array(emptyCount).fill(`
+            <tr style="height:18px;">
+              <td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td>
+              <td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td>
+            </tr>
+          `).join('')
+        : '';
+
+      const pageNumGlobal = pages_수시위험성평가_count + page + 1;
+      pages.push(`
+        <div class="print-page">
+          ${headerHTML()}
           <tbody>
-            ${rows.map(r => {
-              const rb = r.riskBefore || (r.freqBefore || 0) * (r.sevBefore || 0);
-              const ra = r.riskAfter || (r.freqAfter || 0) * (r.sevAfter || 0);
-              return `
-                <tr>
-                  <td style="${S.td} text-align:center; font-size:7pt;">${r.no || ''}</td>
-                  <td style="${S.td} font-size:8pt;">${r.stage || ''}</td>
-                  <td style="${S.td} font-size:8pt;">${r.hazard || ''}</td>
-                  <td style="${S.td} font-size:8pt;">${r.safety || ''}</td>
-                  <td style="${S.td} text-align:center; font-size:8pt;">${r.freqBefore || ''}</td>
-                  <td style="${S.td} text-align:center; font-size:8pt;">${r.sevBefore || ''}</td>
-                  <td style="${S.td} text-align:center; ${riskColor(rb)}">${rb || ''}</td>
-                  <td style="${S.td} font-size:8pt;"></td>
-                  <td style="${S.td} text-align:center; font-size:8pt; color:#0000FF;">${r.freqAfter || ''}</td>
-                  <td style="${S.td} text-align:center; font-size:8pt; color:#0000FF;">${r.sevAfter || ''}</td>
-                  <td style="${S.td} text-align:center; ${riskColor(ra)}">${ra || ''}</td>
-                  <td style="${S.td} font-size:8pt;"></td>
-                  <td style="${S.td} font-size:8pt;"></td>
-                </tr>
-              `;
-            }).join('')}
+            ${rowsHTML}
+            ${emptyRows}
           </tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  // === 3쪽: 감소대책 고려사항 ===
-  function page3_감소대책() {
-    return `
-      <div class="print-page">
-        <div style="${S.title}">위험성 감소대책 수립 시 고려사항</div>
-        <table style="${S.table}">
-          <tr><th style="${S.thNavy}" colspan="2">위험성 감소대책 수립 원칙</th></tr>
-          <tr>
-            <td style="${S.th} width:30%;">1. 본질적 대책</td>
-            <td style="${S.td}">위험한 작업의 폐지·변경, 유해·위험물질 대체 등 설계나 계획 단계에서 위험요인 자체를 제거</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">2. 공학적 대책</td>
-            <td style="${S.td}">인터록, 안전장치, 방호울 등 설비적 대책</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">3. 관리적 대책</td>
-            <td style="${S.td}">매뉴얼 정비, 출입금지, 노출시간 관리, 교육훈련</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">4. 개인보호구</td>
-            <td style="${S.td}">개인보호구의 사용 (최후의 수단)</td>
-          </tr>
-        </table>
-
-        <div style="${S.subtitle}; margin-top:20px;">위험성 수준별 조치 기준 (빈도 1~4 x 강도 1~5 = 최대 20)</div>
-        <table style="${S.table}">
-          <tr>
-            <th style="${S.thNavy} width:15%; text-align:center;">등급</th>
-            <th style="${S.thNavy} width:15%; text-align:center;">위험도</th>
-            <th style="${S.thNavy} text-align:center;">조치 내용</th>
-          </tr>
-          <tr>
-            <td style="${S.td} text-align:center; background:#C00000; color:white; font-weight:bold;">매우위험(VH)</td>
-            <td style="${S.td} text-align:center;">12~20</td>
-            <td style="${S.td}">즉시 작업중지, 개선 시까지 작업 불가</td>
-          </tr>
-          <tr>
-            <td style="${S.td} text-align:center; background:#E26B0A; color:white; font-weight:bold;">고위험(H)</td>
-            <td style="${S.td} text-align:center;">8~11</td>
-            <td style="${S.td}">추가 안전조치 후 작업 가능, TBM 시 필수 전달</td>
-          </tr>
-          <tr>
-            <td style="${S.td} text-align:center; background:#FFC000; font-weight:bold;">���위험(M)</td>
-            <td style="${S.td} text-align:center;">4~7</td>
-            <td style="${S.td}">주의 관찰 필요, 가능한 경감 조치</td>
-          </tr>
-          <tr>
-            <td style="${S.td} text-align:center; background:#375623; color:white; font-weight:bold;">저위험(L)</td>
-            <td style="${S.td} text-align:center;">1~3</td>
-            <td style="${S.td}">현재 수준 유지</td>
-          </tr>
-        </table>
-      </div>
-    `;
-  }
-
-  // === 4쪽: 개선결과 (서식3 기반) ===
-  function page4_개선결과() {
-    const rows = Store.get('rows').filter(r => r.riskBefore >= 8);
-    const ov = Store.get('overview');
-    return `
-      <div class="print-page">
-        <div style="${S.title}">개선 결과</div>
-        <table style="${S.table}; margin-bottom:10px;">
-          <tr>
-            <td style="${S.th} width:18%;">회사 및 부서명</td>
-            <td style="${S.td} width:32%;">${ov.회사부서명 || ''}</td>
-            <td style="${S.th} width:18%;">관리번호</td>
-            <td style="${S.td} width:32%;">${Store.get('관리번호') || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">작업(공정)명</td>
-            <td style="${S.td}">${Store.get('작업명') || ''}</td>
-            <td style="${S.th}">담당자</td>
-            <td style="${S.td}">${ov.작성자 || ''}</td>
-          </tr>
-        </table>
-
-        ${rows.length === 0
-          ? '<p style="text-align:center; padding:40px; color:#999;">고위험 항목 없음</p>'
-          : rows.map((r, idx) => {
-              const rb = r.riskBefore;
-              const ra = r.riskAfter || 0;
-              return `
-                <table style="${S.table}; margin-bottom:12px;">
-                  <tr>
-                    <td style="${S.th} width:18%;">작업내용</td>
-                    <td style="${S.td}" colspan="3">${r.stage || ''} - ${r.hazard || ''}</td>
-                  </tr>
-                  <tr>
-                    <td style="${S.th}">개선내용</td>
-                    <td style="${S.td}" colspan="3">${r.safety || ''}</td>
-                  </tr>
-                  <tr>
-                    <td style="${S.th} width:18%;">개선 전 위험성</td>
-                    <td style="${S.td} width:32%; text-align:center;"><span style="${riskColor(rb)} padding:2px 8px; border-radius:3px;">${rb}</span> (빈도${r.freqBefore} x 강도${r.sevBefore})</td>
-                    <td style="${S.th} width:18%;">개선 후 위험성</td>
-                    <td style="${S.td} width:32%; text-align:center;"><span style="${riskColor(ra)} padding:2px 8px; border-radius:3px;">${ra}</span> (빈도${r.freqAfter} x 강도${r.sevAfter})</td>
-                  </tr>
-                  <tr>
-                    <td style="${S.th}">개선 전 사진</td>
-                    <td style="${S.td} height:80px; text-align:center; color:#999; font-size:8pt;">(사진 첨부)</td>
-                    <td style="${S.th}">개선 후 사진</td>
-                    <td style="${S.td} height:80px; text-align:center; color:#999; font-size:8pt;">(사진 첨부)</td>
-                  </tr>
-                </table>
-              `;
-            }).join('')
-        }
-      </div>
-    `;
-  }
-
-  // === 5쪽: 결과확인 (서명란) ===
-  function page5_결과확인() {
-    const members = Store.get('members').filter(m => m.name);
-    return `
-      <div class="print-page">
-        <div style="${S.title}">위험성평가 결과확인</div>
-        <table style="${S.table}">
-          <tr>
-            <td style="${S.th} width:25%;">관리번호</td>
-            <td style="${S.td}">${Store.get('관리번호')}</td>
-            <td style="${S.th} width:25%;">작성일자</td>
-            <td style="${S.td}">${Store.get('overview').작성일자}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">작업명</td>
-            <td style="${S.td}" colspan="3">${Store.get('작업명')}</td>
-          </tr>
-        </table>
-
-        <div style="${S.subtitle}; margin-top:16px;">평가참여자 서명란</div>
-        <table style="${S.table}">
-          <tr>
-            <th style="${S.thNavy} width:40px;">순번</th>
-            <th style="${S.thNavy}">소속</th>
-            <th style="${S.thNavy}">성명</th>
-            <th style="${S.thNavy} width:120px;">서명</th>
-          </tr>
-          ${members.map((m, i) => `
-            <tr style="height:30px;">
-              <td style="${S.td} text-align:center;">${i + 1}</td>
-              <td style="${S.td} text-align:center;">${m.affiliation}</td>
-              <td style="${S.td} text-align:center;">${m.name}</td>
-              <td style="${S.td}"></td>
-            </tr>
-          `).join('')}
-          ${members.length < 10 ? Array(10 - members.length).fill(0).map((_, i) => `
-            <tr style="height:30px;">
-              <td style="${S.td} text-align:center;">${members.length + i + 1}</td>
-              <td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td>
-            </tr>
-          `).join('') : ''}
-        </table>
-
-        <div style="margin-top:40px; text-align:center;">
-          <p style="font-size:10pt;">상기 위험성평가 결과를 확인합니다.</p>
-          <p style="font-size:10pt; margin-top:30px;">
-            ${Store.get('overview').작성일자 || '____년 __월 __일'}
-          </p>
-          <p style="font-size:11pt; margin-top:20px;">
-            작성자: ${Store.get('overview').작성자 || '________________'} (서명)
-          </p>
+          </table>
+          <div style="${S.pageNum}">- ${pageNumGlobal} -</div>
         </div>
-      </div>
-    `;
+      `);
+    }
+
+    return pages;
   }
 
-  // === 6쪽: TBM 일지 1면 (TBM 양식.pdf 기반) ===
-  function page6_TBM1면() {
+  // 페이지 카운트 추적 (동적)
+  let pages_수시위험성평가_count = 0;
+
+  // ============================================================
+  //  위험성평가 실시결과 확인 (3단 30명 — KOEN 서식 4페이지)
+  // ============================================================
+  function pages_실시결과확인() {
+    const members = Store.get('members').filter(m => m.name);
+    const totalSlots = 30;
+
+    function makeCol(start, end) {
+      let rows = '';
+      for (let i = start; i <= end; i++) {
+        const m = members[i - 1];
+        rows += `
+          <tr style="height:18px;">
+            <td style="${S.td} text-align:center; width:24px; font-size:7.5pt;">${i}</td>
+            <td style="${S.td} text-align:center; font-size:7.5pt;">${m ? (m.affiliation || '') : ''}</td>
+            <td style="${S.td} text-align:center; font-size:7.5pt;">${m ? (m.name || '') : ''}</td>
+            <td style="${S.td} width:40px;"></td>
+          </tr>
+        `;
+      }
+      return rows;
+    }
+
+    return [`
+      <div class="print-page">
+        <div style="${S.title}">위험성평가 실시결과 확인</div>
+
+        <div style="border:2px solid #000; padding:6px 10px; margin-bottom:8px; font-size:8.5pt; line-height:1.6;">
+          <p>□ 작업 시작 전 관리감독자로부터 유해·위험요인에 대한 정보를 제공 받고 그 내용을 확인 하였으며,</p>
+          <p style="padding-left:14px;">유해·위험작업으로부터 보호를 받을 수 있는 보호구를 지급받고 착용 하였습니다.</p>
+          <p>□ 해당 작업에 대한 위험성평가 결과를 확인하고 숙지하였습니다.</p>
+          <p style="font-size:8pt; margin-top:4px;">※ 유해·위험요인 개선 요청은 Safety365 모바일웹 안전제안에서 하실 수 있습니다.( http://koenergy.kr/safety365)</p>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="vertical-align:top; width:33.3%; padding-right:2px;">
+              <table style="${S.table}">
+                <tr>
+                  <th style="${S.th} width:28px;">순번</th>
+                  <th style="${S.th}">소 속</th>
+                  <th style="${S.th}">성 명</th>
+                  <th style="${S.th} width:45px;">서 명</th>
+                </tr>
+                ${makeCol(1, 10)}
+              </table>
+            </td>
+            <td style="vertical-align:top; width:33.3%; padding:0 1px;">
+              <table style="${S.table}">
+                <tr>
+                  <th style="${S.th} width:28px;">순번</th>
+                  <th style="${S.th}">소 속</th>
+                  <th style="${S.th}">성 명</th>
+                  <th style="${S.th} width:45px;">서 명</th>
+                </tr>
+                ${makeCol(11, 20)}
+              </table>
+            </td>
+            <td style="vertical-align:top; width:33.3%; padding-left:2px;">
+              <table style="${S.table}">
+                <tr>
+                  <th style="${S.th} width:28px;">순번</th>
+                  <th style="${S.th}">소 속</th>
+                  <th style="${S.th}">성 명</th>
+                  <th style="${S.th} width:45px;">서 명</th>
+                </tr>
+                ${makeCol(21, 30)}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- 비고 -->
+        <table style="${S.table}; margin-top:6px;">
+          <tr>
+            <td style="${S.th}; font-size:10pt; letter-spacing:6px;">비 고</td>
+          </tr>
+          <tr>
+            <td style="${S.td} height:60px; vertical-align:top;"></td>
+          </tr>
+        </table>
+      </div>
+    `];
+  }
+
+  // ============================================================
+  //  TBM 일지 1면
+  // ============================================================
+  function page_TBM1면() {
     const ov = Store.get('overview');
     const members = Store.get('members').filter(m => m.name);
     const tbm = Store.get('tbm');
@@ -374,12 +409,12 @@ const PrintManager = (() => {
     const details = tbm.attendeeDetails || {};
     const workTypes = Store.classifyWorkTypes();
 
-    // 안전허가 체크박스
-    const permitChecks = workTypes.map(t =>
-      `${t.result === '해당' ? '■' : '□'} ${t.id}`
-    ).join('  ');
+    const permitOrder = ['화기작업', '일반작업', '밀폐작업', '고소작업', '정전작업', '굴착작업', '잠수작업', '중장비작업', '방사선작업'];
+    const permitChecks = permitOrder.map(id => {
+      const t = workTypes.find(wt => wt.id === id);
+      return `${t && t.result === '해당' ? '■' : '□'} ${id}`;
+    }).join('&nbsp;&nbsp;');
 
-    // 위험예지활동 행 (최소 3행)
     const riskRows = [];
     for (let i = 0; i < Math.max(3, tbmItems.length); i++) {
       const item = tbmItems[i];
@@ -393,101 +428,161 @@ const PrintManager = (() => {
       `);
     }
 
-    return `
-      <div class="print-page">
-        ${결재란(['소장', '관리감독자', '담당'])}
-        <div style="${S.title}">TBM (Tool Box Meeting) 일지</div>
+    const CHECKLIST = [
+      '작업에 필요한 안전작업허가서는 발행되었는가?',
+      '작업조건과 작업범위는 검토되었는가?',
+      '유해·위험요인에 대하여 교육 및 안전조치는 하였는가?',
+      '작업에 필요한 안전한 작업방법은 알고 있는가?(장비, 공구사용법 등)',
+      '도면 및 정비절차서는 검토하였는가?',
+      '사용장비에 대한 안전확인점검 실시여부를 확인 하였는가?',
+      '작업대상 설비는 계통과 격리되어 위험은 없는가?',
+      '안전사고 발생시 비상조치계획을 알고 있는가?',
+    ];
+    const half = Math.ceil(CHECKLIST.length / 2);
+    const col1 = CHECKLIST.slice(0, half);
+    const col2 = CHECKLIST.slice(half);
 
-        <table style="${S.table}; margin-bottom:8px;">
+    const dateStr = ov.작성일자 || '';
+    const dayOfWeek = dateStr ? (() => {
+      const d = new Date(dateStr);
+      return isNaN(d) ? '' : ['일','월','화','수','목','금','토'][d.getDay()];
+    })() : '';
+
+    return `
+      <div class="print-page-landscape">
+        ${결재란TBM()}
+        <div style="${S.title}">TBM 일지</div>
+
+        <table style="${S.table}; margin-bottom:2px;">
           <tr>
-            <td style="${S.th} width:18%;">시행부서명</td>
-            <td style="${S.td} width:32%;">${ov.회사부서명 || ''}</td>
-            <td style="${S.th} width:18%;">시행일</td>
-            <td style="${S.td} width:32%;">${ov.작성일자 || ''}</td>
+            <td style="${S.td} width:11%;">○ 회사명 :</td>
+            <td style="${S.td} width:39%;">${ov.회사부서명 || ''}</td>
+            <td style="${S.td} width:13%;">○ 시행부서명 :</td>
+            <td style="${S.td} width:37%;">${ov.회사부서명 || ''}</td>
           </tr>
           <tr>
-            <td style="${S.th}">회사명</td>
-            <td style="${S.td}">${ov.회사부서명 || ''}</td>
-            <td style="${S.th}">작업책임자(조장)</td>
-            <td style="${S.td}">${ov.작성자 || ''}</td>
+            <td style="${S.td}">○ 시행일 :</td>
+            <td style="${S.td}">${dateStr}${dayOfWeek ? `(${dayOfWeek})` : ''}</td>
+            <td style="${S.td}">작업책임자(조장) :</td>
+            <td style="${S.td}">${ov.작성자 || ''}　(서명)</td>
           </tr>
+        </table>
+
+        <table style="${S.table}; margin-bottom:2px;">
           <tr>
-            <td style="${S.th}">작업명</td>
+            <td style="${S.th} width:11%;">▣ 작 업 명 :</td>
             <td style="${S.td}" colspan="3">${Store.get('작업명') || ''}</td>
           </tr>
           <tr>
-            <td style="${S.th}">작업내용</td>
-            <td style="${S.td}" colspan="3">${Store.get('작업내용') || ''}</td>
+            <td style="${S.th}" colspan="4">▣ 작 업 내 용</td>
           </tr>
           <tr>
-            <td style="${S.th}">작업장소</td>
-            <td style="${S.td}">${ov.작업장소 || ''}</td>
-            <td style="${S.th}">작업시간</td>
-            <td style="${S.td}">${ov.작업기간 || ''}</td>
+            <td style="${S.td} width:11%;">○ 작업장소 :</td>
+            <td style="${S.td} width:39%;">${ov.작업장소 || ''}</td>
+            <td style="${S.td} width:13%;">○ 작업시간 :</td>
+            <td style="${S.td} width:37%;">${ov.작업기간 || ''}</td>
           </tr>
           <tr>
-            <td style="${S.th}">투입장비</td>
+            <td style="${S.td}">○ 투입장비 :</td>
             <td style="${S.td}">${Store.getEquipmentText() || '-'}</td>
-            <td style="${S.th}">투입인원</td>
+            <td style="${S.td}">○ 투입인원 :</td>
             <td style="${S.td}">${members.length}명</td>
           </tr>
-        </table>
-
-        <table style="${S.table}; margin-bottom:8px;">
           <tr>
-            <td style="${S.th} width:18%;">안전허가</td>
-            <td style="${S.td} font-size:8pt;" colspan="3">${permitChecks}</td>
+            <td style="${S.td}">○ 안전허가 :</td>
+            <td style="${S.td} font-size:6.5pt;" colspan="3">${permitChecks}</td>
           </tr>
         </table>
 
-        <div style="${S.subtitle}; color:#C00000;">위험예지활동</div>
-        <table style="${S.table}; margin-bottom:4px;">
+        <div style="${S.subtitle}; color:#000; margin:2px 0 1px;">▣ 위험예지활동 (위험성평가 활용)</div>
+        <table style="${S.table}; margin-bottom:1px;">
           <tr>
-            <th style="${S.thNavy} width:30px;">순번</th>
+            <th style="${S.thNavy} width:25px;">순번</th>
             <th style="${S.thNavy}">유해 · 위험요인</th>
             <th style="${S.thNavy}">안전대책</th>
-            <th style="${S.thNavy} width:30px;">확인</th>
+            <th style="${S.thNavy} width:25px;">확인</th>
           </tr>
           ${riskRows.join('')}
         </table>
-        ${tbm.onePoint ? `<p style="font-size:8pt; margin-bottom:6px;"><strong style="color:#C00000;">One Point:</strong> ${tbm.onePoint}</p>` : '<p style="font-size:8pt; margin-bottom:6px;"><strong style="color:#C00000;">One Point:</strong></p>'}
+        <table style="${S.table}; margin-bottom:2px;">
+          <tr>
+            <td style="${S.td} font-weight:bold; width:55px;">One Point</td>
+            <td style="${S.td}">${tbm.onePoint || ''}</td>
+          </tr>
+        </table>
 
-        <div style="${S.subtitle};">참석자 및 건강상태 확인</div>
+        <div style="${S.subtitle}; margin:2px 0 1px;">▣ 점검사항 및 확인(Check List)</div>
+        <table style="${S.table}; margin-bottom:1px;">
+          <tr>
+            <td style="${S.td} font-size:7.5pt; width:50%;"><strong>적용 절차서</strong>　${tbm.procedure || ''}</td>
+            <td style="${S.td} font-size:7.5pt;"><strong>적용 작업 전 안전점검표</strong>　${tbm.safetySheet || ''}</td>
+          </tr>
+        </table>
+        <table style="${S.table}; margin-bottom:2px;">
+          <tr>
+            <th style="${S.thNavy} width:22px;">NO</th>
+            <th style="${S.thNavy}">점검 및 확인</th>
+            <th style="${S.thNavy} width:22px;">예</th>
+            <th style="${S.thNavy} width:22px;">아니오</th>
+            <th style="${S.thNavy} width:22px;">NO</th>
+            <th style="${S.thNavy}">점검 및 확인</th>
+            <th style="${S.thNavy} width:22px;">예</th>
+            <th style="${S.thNavy} width:22px;">아니오</th>
+          </tr>
+          ${col1.map((q, i) => {
+            const val1 = tbm.checklist[`q${i + 1}`] || '';
+            const q2 = col2[i];
+            const val2 = q2 ? (tbm.checklist[`q${i + half + 1}`] || '') : '';
+            return `
+              <tr>
+                <td style="${S.td} text-align:center; font-size:7pt;">${i + 1}</td>
+                <td style="${S.td} font-size:7pt;">${q}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${val1 === 'yes' ? '■' : '□'}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${val1 === 'no' ? '■' : '□'}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${q2 ? i + half + 1 : ''}</td>
+                <td style="${S.td} font-size:7pt;">${q2 || ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${val2 === 'yes' ? '■' : '□'}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${val2 === 'no' ? '■' : '□'}</td>
+              </tr>
+            `;
+          }).join('')}
+        </table>
+
+        <div style="${S.subtitle}; margin:2px 0 1px;">▣ 참석자 및 건강상태 확인</div>
         <table style="${S.table}">
           <tr>
-            <th style="${S.thNavy} width:50px;">소속</th>
-            <th style="${S.thNavy} width:50px;">성명</th>
-            <th style="${S.thNavy} width:50px;">서명</th>
-            <th style="${S.thNavy}" colspan="3">안전장구</th>
-            <th style="${S.thNavy}" colspan="3">건강상태</th>
+            <th style="${S.thNavy} font-size:7pt;" rowspan="2">소속</th>
+            <th style="${S.thNavy} font-size:7pt;" rowspan="2">성명</th>
+            <th style="${S.thNavy} font-size:7pt;" rowspan="2">서명</th>
+            <th style="${S.thNavy} font-size:6.5pt;" colspan="3">안전장구/보호구 착용</th>
+            <th style="${S.thNavy} font-size:6.5pt;" colspan="2">건강상태 확인</th>
+            <th style="${S.thNavy} font-size:6pt;" rowspan="2">이상자<br>발생여부</th>
           </tr>
           <tr>
-            <th style="${S.thNavy}" colspan="3"></th>
-            <th style="${S.thNavy} width:25px; font-size:7pt;">안전모</th>
-            <th style="${S.thNavy} width:25px; font-size:7pt;">안전대</th>
-            <th style="${S.thNavy} width:25px; font-size:7pt;">기타</th>
-            <th style="${S.thNavy} width:25px; font-size:7pt;">전</th>
-            <th style="${S.thNavy} width:25px; font-size:7pt;">후</th>
-            <th style="${S.thNavy} width:25px; font-size:7pt;">이상</th>
+            <th style="${S.thNavy} font-size:6.5pt; width:24px;">안전모</th>
+            <th style="${S.thNavy} font-size:6.5pt; width:24px;">안전대</th>
+            <th style="${S.thNavy} font-size:6.5pt; width:24px;">기타</th>
+            <th style="${S.thNavy} font-size:6.5pt; width:40px;">작업 전</th>
+            <th style="${S.thNavy} font-size:6.5pt; width:40px;">작업 후</th>
           </tr>
           ${members.map(m => {
             const d = details[m.name] || {};
             return `
               <tr>
-                <td style="${S.td} text-align:center; font-size:8pt;">${m.affiliation}</td>
-                <td style="${S.td} text-align:center; font-size:8pt;">${m.name}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${m.affiliation || ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${m.name}</td>
                 <td style="${S.td}"></td>
-                <td style="${S.td} text-align:center;">${d.helmet ? 'O' : ''}</td>
-                <td style="${S.td} text-align:center;">${d.safetyBelt ? 'O' : ''}</td>
-                <td style="${S.td} text-align:center;">${d.safetyShoes ? 'O' : ''}</td>
-                <td style="${S.td} text-align:center; font-size:8pt;">${d.healthBefore || ''}</td>
-                <td style="${S.td} text-align:center; font-size:8pt;">${d.healthAfter || ''}</td>
-                <td style="${S.td} text-align:center;">${d.abnormal ? 'O' : ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${d.helmet ? 'O' : ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${d.safetyBelt ? 'O' : ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${d.safetyShoes ? 'O' : ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${d.healthBefore || ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${d.healthAfter || ''}</td>
+                <td style="${S.td} text-align:center; font-size:7pt;">${d.abnormal ? 'O' : ''}</td>
               </tr>
             `;
           }).join('')}
-          ${members.length < 8 ? Array(8 - members.length).fill(0).map(() => `
-            <tr style="height:22px;">
+          ${members.length < 10 ? Array(10 - members.length).fill(0).map(() => `
+            <tr style="height:16px;">
               <td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td>
               <td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td>
               <td style="${S.td}"></td><td style="${S.td}"></td><td style="${S.td}"></td>
@@ -498,95 +593,83 @@ const PrintManager = (() => {
     `;
   }
 
-  // === 7쪽: TBM 일지 2면 (TBM 양식.pdf 기반) ===
-  function page7_TBM2면() {
+  // ============================================================
+  //  TBM 일지 2면
+  // ============================================================
+  function page_TBM2면() {
     const tbm = Store.get('tbm');
-    const CHECKLIST = [
-      '작업 전 안전교육을 실시하였는가?',
-      '개인보호구를 정확히 착용하였는가?',
-      '작업도구 및 장비 상태를 점검하였는가?',
-      '작업장 정리정돈 상태는 양호한가?',
-      '안전시설물(난간, 덮개 등)은 설치되었는가?',
-      '위험구역 출입통제 조치를 하였는가?',
-      '비상연락망 및 응급조치 방법을 숙지하였는가?',
-      '작업허가서(안전작업허가)를 발급받았는가?',
-    ];
-
-    // 2열 레이아웃 체크리스트
-    const half = Math.ceil(CHECKLIST.length / 2);
-    const col1 = CHECKLIST.slice(0, half);
-    const col2 = CHECKLIST.slice(half);
 
     return `
-      <div class="print-page">
-        <div style="${S.subtitle}">점검사항 Check List</div>
-        <table style="${S.table}; margin-bottom:10px;">
-          <tr>
-            <th style="${S.thNavy} width:25px;">No</th>
-            <th style="${S.thNavy}">점검 항목</th>
-            <th style="${S.thNavy} width:30px;">예</th>
-            <th style="${S.thNavy} width:30px;">아니오</th>
-            <th style="${S.thNavy} width:25px;">No</th>
-            <th style="${S.thNavy}">점검 항목</th>
-            <th style="${S.thNavy} width:30px;">예</th>
-            <th style="${S.thNavy} width:30px;">아니오</th>
-          </tr>
-          ${col1.map((q, i) => {
-            const val1 = tbm.checklist[`q${i + 1}`] || '';
-            const q2 = col2[i];
-            const val2 = q2 ? (tbm.checklist[`q${i + half + 1}`] || '') : '';
-            return `
-              <tr>
-                <td style="${S.td} text-align:center;">${i + 1}</td>
-                <td style="${S.td} font-size:8pt;">${q}</td>
-                <td style="${S.td} text-align:center;">${val1 === 'yes' ? 'V' : ''}</td>
-                <td style="${S.td} text-align:center;">${val1 === 'no' ? 'V' : ''}</td>
-                <td style="${S.td} text-align:center;">${q2 ? i + half + 1 : ''}</td>
-                <td style="${S.td} font-size:8pt;">${q2 || ''}</td>
-                <td style="${S.td} text-align:center;">${val2 === 'yes' ? 'V' : ''}</td>
-                <td style="${S.td} text-align:center;">${val2 === 'no' ? 'V' : ''}</td>
-              </tr>
-            `;
-          }).join('')}
+      <div class="print-page-landscape">
+        <div style="${S.subtitle}; font-weight:bold; margin:0 0 2px;">▣ 작업 종료 후 피드백 미팅</div>
+        <table style="${S.table}; margin-bottom:6px;">
+          <tr><td style="${S.td} height:18px;">○</td></tr>
+          <tr><td style="${S.td} height:18px;">○</td></tr>
+          <tr><td style="${S.td} height:18px;">○</td></tr>
+          <tr><td style="${S.td} height:18px;">○</td></tr>
         </table>
 
-        <table style="${S.table}; margin-bottom:10px;">
+        <table style="${S.table}; margin-bottom:6px;">
           <tr>
-            <td style="${S.th} width:25%;">감시자 안전장구 지급 여부</td>
-            <td style="${S.td}">${tbm.safetyGearProvided ? '■ 지급완료' : '□ 미지급'}</td>
+            <td style="${S.th} width:40px;" rowspan="2">기타</td>
+            <td style="${S.td} font-size:7.5pt; font-weight:bold;"><u>TBM을 주관하는 조장이 당일 작업 중, 특이사항 및 이상사항 발생여부, 근무조 건강 이상상태 등 기재</u></td>
+          </tr>
+          <tr>
+            <td style="${S.td}">감시자에게 필요한 안전장구를 지급하였습니까? &nbsp;&nbsp; ${tbm.safetyGearProvided ? '■' : '□'} 예, &nbsp; ${tbm.safetyGearProvided ? '□' : '■'} 아니오</td>
           </tr>
         </table>
 
-        <div style="${S.subtitle};">작업 종료 후 피드백 미팅</div>
-        <table style="${S.table}; margin-bottom:10px;">
-          ${(tbm.feedback || ['','','','']).map((f, i) => `
-            <tr>
-              <td style="${S.td} width:30px; text-align:center;">${i + 1}</td>
-              <td style="${S.td} min-height:20px;">${f || ''}</td>
-            </tr>
-          `).join('')}
-        </table>
-
-        <div style="${S.subtitle};">도급인 전달사항</div>
         <table style="${S.table}">
           <tr>
-            <td style="${S.th} width:18%;">내용</td>
-            <td style="${S.td}" colspan="3">${tbm.contractorMessage?.content || ''}</td>
+            <td style="${S.th} width:60px;" rowspan="2">도급인<br>전달<br>사항</td>
+            <td style="${S.td} min-height:60px;" colspan="3">${tbm.contractorMessage?.content || ''}</td>
           </tr>
           <tr>
-            <td style="${S.th}">전달일시</td>
-            <td style="${S.td}">${tbm.contractorMessage?.deliveredAt || ''}</td>
-            <td style="${S.th} width:18%;">전달자</td>
-            <td style="${S.td}">${tbm.contractorMessage?.deliverer || ''}</td>
-          </tr>
-          <tr>
-            <td style="${S.th}">서명</td>
-            <td style="${S.td} height:30px;" colspan="3"></td>
+            <td style="${S.td}"><strong>전달일시</strong>　${tbm.contractorMessage?.deliveredAt || ''}</td>
+            <td style="${S.td}"><strong>전달자</strong>　${tbm.contractorMessage?.deliverer || ''}</td>
+            <td style="${S.td}"><strong>서명</strong></td>
           </tr>
         </table>
       </div>
     `;
   }
 
-  return { print };
+  // ============================================================
+  //  print() 래퍼: 페이지 카운트 추적
+  // ============================================================
+  function printAll() {
+    const old = document.getElementById('printContainer');
+    if (old) old.remove();
+
+    const container = document.createElement('div');
+    container.id = 'printContainer';
+    container.className = 'print-only';
+
+    // 수시 위험성평가 페이지 생성
+    const p1 = pages_수시위험성평가();
+    pages_수시위험성평가_count = p1.length;
+
+    // 위험성평가표 페이지
+    const p2 = pages_위험성평가표();
+
+    // 실시결과확인
+    const p3 = pages_실시결과확인();
+
+    // TBM
+    const p4 = page_TBM1면();
+    const p5 = page_TBM2면();
+
+    container.innerHTML = [
+      ...p1,
+      ...p2,
+      ...p3,
+      p4,
+      p5,
+    ].join('');
+
+    document.body.appendChild(container);
+    window.print();
+  }
+
+  return { print: printAll };
 })();

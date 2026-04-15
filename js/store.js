@@ -38,6 +38,7 @@ const Store = (() => {
       작성자: '',
       작업기간: '',
       작업장소: '',
+      작업절차서: '',
       중점관리사항: '',
       필요한보호구: '',
       필요한공기구: '',
@@ -49,6 +50,32 @@ const Store = (() => {
 
     // AB7: 위험성평가 행
     rows: [],
+
+    // 역할 지정 (작업분류별 감시자/유도자/신호수 등)
+    roleAssignments: {
+      // { '화기감시자': [memberIndex, ...], '밀폐감시자': [...], '신호수': [...], '유도자': [...] }
+    },
+
+    // 중량물 작업계획서
+    heavyLiftPlan: {
+      작업명: '', 작업일시: '', 작업장소: '',
+      중량물명칭: '', 중량: '', 규격: '',
+      양중장비: '', 양중방법: '', 안전조치사항: '',
+      작업책임자: '', 작성자: '', 작성일: '',
+    },
+
+    // 중장비 작업계획서
+    heavyEquipmentPlan: {
+      작업명: '', 작업일시: '', 작업장소: '',
+      중장비종류: '', 중장비규격: '', 장비번호: '',
+      운전원: '', 운전면허번호: '', 작업범위: '',
+      작업방법: '', 신호수: '', 유도자: '',
+      안전조치사항: '', 비상시조치계획: '',
+      작업책임자: '', 작성자: '', 작성일: '',
+    },
+
+    // 밀폐작업 출입대장
+    confinedEntryLog: [],
 
     // TBM 전용 데이터
     tbm: {
@@ -129,23 +156,8 @@ const Store = (() => {
   function classifyWorkTypes() {
     const hazards = state.hazards;
     return state.workTypes.map(t => {
-      let autoHit = false;
-      if (t.kind === 'auto') {
-        switch (t.id) {
-          case '고소작업':
-            autoHit = hazards.some(h => h.checked && h.고소감전여부 === '고소');
-            break;
-          case '정전작업':
-            autoHit = hazards.some(h => h.checked && h.고소감전여부 === '감전');
-            break;
-          case '굴착작업':
-            autoHit = hazards.some(h => h.checked && h.중장비여부 === '굴착');
-            break;
-          case '중장비작업':
-            autoHit = hazards.some(h => h.checked && h.중장비여부 === '중장비');
-            break;
-        }
-      }
+      // 기인물의 작업분류 필드로 자동 판정 (모든 작업분류 공통 규칙)
+      const autoHit = hazards.some(h => h.checked && h.작업분류 === t.id);
       return {
         ...t,
         auto: autoHit,
@@ -254,6 +266,96 @@ const Store = (() => {
   }
 
   /**
+   * 작업분류별 필요 역할 목록
+   */
+  function getRequiredRoles() {
+    const types = classifyWorkTypes();
+    const roles = [];
+    types.forEach(t => {
+      if (t.result !== '해당') return;
+      switch (t.id) {
+        case '화기작업':
+          roles.push({ role: '화기감시자', workType: '화기작업', min: 1, exclusive: true, label: '화기감시자 (겸직 금지)' });
+          break;
+        case '밀폐작업':
+          roles.push({ role: '밀폐감시자', workType: '밀폐작업', min: 1, exclusive: false, label: '밀폐감시자' });
+          break;
+        case '굴착작업':
+          roles.push({ role: '굴착_유도자', workType: '굴착작업', min: 1, exclusive: false, label: '유도자 (굴착)' });
+          roles.push({ role: '굴착_신호수', workType: '굴착작업', min: 1, exclusive: false, label: '신호수 (굴착)' });
+          break;
+        case '중장비작업':
+          roles.push({ role: '중장비_유도자', workType: '중장비작업', min: 1, exclusive: false, label: '유도자 (중장비)' });
+          roles.push({ role: '중장비_신호수', workType: '중장비작업', min: 1, exclusive: false, label: '신호수 (중장비)' });
+          break;
+        case '중량물작업':
+          roles.push({ role: '중량물_작업책임자', workType: '중량물작업', min: 1, exclusive: false, label: '작업책임자 (중량물)' });
+          break;
+      }
+    });
+    return roles;
+  }
+
+  /**
+   * 역할 검증: 모든 필수 역할이 지정되었는지 확인
+   * - 겸직(같은 사람이 여러 역할) 시 최소 2명 이상 배치 검증
+   */
+  function validateRoles() {
+    const roles = getRequiredRoles();
+    const assignments = state.roleAssignments;
+    const errors = [];
+
+    roles.forEach(r => {
+      const assigned = assignments[r.role] || [];
+      if (assigned.length < r.min) {
+        errors.push({ role: r.role, label: r.label, type: 'missing', message: `${r.label} 미지정` });
+      }
+    });
+
+    // 겸직 검증: 한 사람이 여러 역할 → 해당 작업에 최소 2명 이상 배치
+    const personRoles = {};
+    Object.entries(assignments).forEach(([role, indices]) => {
+      indices.forEach(idx => {
+        if (!personRoles[idx]) personRoles[idx] = [];
+        personRoles[idx].push(role);
+      });
+    });
+
+    // 화기감시자 겸직 금지 검증
+    const fireWatcher = assignments['화기감시자'] || [];
+    fireWatcher.forEach(idx => {
+      if (personRoles[idx] && personRoles[idx].length > 1) {
+        errors.push({ role: '화기감시자', label: '화기감시자', type: 'exclusive', message: '화기감시자는 겸직이 금지됩니다' });
+      }
+    });
+
+    // 일반 겸직: 최소 2명 배치 필요
+    Object.entries(personRoles).forEach(([idx, roleList]) => {
+      if (roleList.length > 1 && !roleList.includes('화기감시자')) {
+        roleList.forEach(role => {
+          const assigned = assignments[role] || [];
+          if (assigned.length < 2) {
+            const roleDef = roles.find(r => r.role === role);
+            if (roleDef) {
+              errors.push({ role, label: roleDef.label, type: 'dual', message: `${roleDef.label}: 겸직 시 최소 2명 이상 지정 필요` });
+            }
+          }
+        });
+      }
+    });
+
+    // 중복 제거
+    const unique = [];
+    const seen = new Set();
+    errors.forEach(e => {
+      const key = `${e.role}:${e.type}`;
+      if (!seen.has(key)) { seen.add(key); unique.push(e); }
+    });
+
+    return { valid: unique.length === 0, errors: unique };
+  }
+
+  /**
    * 전체 데이터 내보내기 (JSON)
    */
   function exportData() {
@@ -284,6 +386,8 @@ const Store = (() => {
     getStageAnalysis,
     getRiskDistribution,
     getTbmRiskItems,
+    getRequiredRoles,
+    validateRoles,
     exportData,
     importData,
   };
