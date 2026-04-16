@@ -59,7 +59,7 @@
       }
       .print-page-landscape {
         page-break-after: always;
-        page: tbm-landscape;
+        page: ra-landscape;
         width: 287mm; min-height: 200mm;
         padding: 0;
         box-sizing: border-box;
@@ -71,7 +71,7 @@
       tr { page-break-inside: avoid; }
     }
     @page { size: A4 portrait; margin: 5mm; }
-    @page tbm-landscape { size: A4 landscape; margin: 5mm; }
+    @page ra-landscape { size: A4 landscape; margin: 5mm; }
 
     /* 스크롤바 */
     ::-webkit-scrollbar { width: 6px; }
@@ -110,6 +110,56 @@
     /* 스크롤 부드럽게 */
     html { scroll-behavior: smooth; }
 
+    /* ===== 모바일 최적화 ===== */
+    @media (max-width: 768px) {
+      /* 헤더 컴팩트 */
+      header .flex { padding: 8px 12px; }
+      header h1 { font-size: 14px; }
+      header button { padding: 6px 10px; font-size: 12px; }
+
+      /* 메인 패딩 축소 */
+      main { padding: 12px !important; padding-bottom: 70px !important; }
+
+      /* 섹션 카드 */
+      section.bg-white { padding: 12px; border-radius: 8px; }
+      section h2 { font-size: 14px; }
+
+      /* 입력필드 터치 최적화 */
+      input[type="text"], input[type="date"], input[type="datetime-local"],
+      input[type="number"], input[type="time"],
+      select, textarea {
+        font-size: 16px !important; /* iOS 줌 방지 */
+        min-height: 40px;
+        padding: 8px 10px;
+      }
+
+      /* 테이블 가로 스크롤 */
+      .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+
+      /* 버튼 터치 영역 확대 */
+      button { min-height: 36px; }
+
+      /* 기인물 체크 항목 터치 영역 */
+      #hazardGroupContainer .cursor-pointer { padding: 8px 6px !important; }
+
+      /* 하단 네비 버튼 */
+      #wizardBottomNav button { min-width: 70px; padding: 10px 16px; }
+
+      /* 필터 탭 */
+      .hazard-filter-tab { padding: 6px 10px; font-size: 11px; }
+
+      /* 그리드 1열 강제 */
+      .grid.grid-cols-2.md\\:grid-cols-5 { grid-template-columns: repeat(2, 1fr); }
+
+      /* 모달 모바일 */
+      .fixed.inset-0 > div { width: 95vw !important; max-height: 90vh; margin: 0 auto; }
+    }
+
+    /* 터치 디바이스 호버 제거 */
+    @media (hover: none) {
+      .hover\:bg-gray-50:hover { background-color: transparent; }
+    }
+
     /* ===== 스텝 위자드 ===== */
     .wizard-section { display: none; }
     .wizard-section.active { display: block; }
@@ -141,17 +191,21 @@
         <span id="headerRefNo" class="text-sm text-blue-200 hidden sm:inline"></span>
       </div>
       <div class="flex items-center gap-1 lg:gap-2 flex-wrap">
-        <button onclick="App.save()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
-          <span class="mr-1">&#128190;</span> 저장
+        <button onclick="App.save()" class="px-2 sm:px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span>&#128190;</span><span class="hidden sm:inline ml-1">저장</span>
         </button>
-        <button onclick="App.load()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
-          <span class="mr-1">&#128194;</span> 불러오기
+        <button onclick="App.load()" class="px-2 sm:px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span>&#128194;</span><span class="hidden sm:inline ml-1">불러오기</span>
         </button>
-        <button onclick="PrintManager.print()" class="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
-          <span class="mr-1">&#128196;</span> PDF 출력
+        <button onclick="PrintManager.print()" class="px-2 sm:px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm transition">
+          <span>&#128196;</span><span class="hidden sm:inline ml-1">PDF</span>
         </button>
-        <button onclick="loadSampleData()" class="px-3 py-1.5 bg-yellow-500/80 hover:bg-yellow-500 text-white rounded text-sm transition font-medium">
-          <span class="mr-1">&#128203;</span> 샘플데이터
+        <button onclick="loadSampleData()" class="px-2 sm:px-3 py-1.5 bg-yellow-500/80 hover:bg-yellow-500 text-white rounded text-sm transition font-medium">
+          <span>&#128203;</span><span class="hidden sm:inline ml-1">샘플</span>
+        </button>
+        <span class="text-white/30">|</span>
+        <button onclick="AdminPanel.openLogin()" class="px-2 sm:px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded text-sm transition border border-white/20">
+          <span>&#128274;</span><span class="hidden sm:inline ml-1">DB관리</span>
         </button>
       </div>
     </div>
@@ -560,85 +614,77 @@
           <span class="text-xs font-normal text-gray-400 ml-2">공정현황 · 기인물분석</span>
         </h2>
 
-        <!-- 상단: KPI 카드 + 미니 차트 (5cm≈189px 기준) -->
-        <div class="flex flex-wrap gap-3 mb-4">
+        <!-- KPI 카드 그리드 (모바일 2열, 데스크톱 4열) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <!-- KPI 카드: 전체 공정수 / 고위험 공정수 -->
-          <div class="border border-gray-200 rounded-lg p-2 text-center" style="width:189px; height:189px; display:flex; flex-direction:column; justify-content:center;">
-            <div class="text-[10px] text-gray-500 mb-1">공정 현황</div>
-            <div class="flex items-end justify-center gap-3 mb-2">
+          <div class="border border-gray-200 rounded-lg p-3 text-center flex flex-col justify-center min-h-[120px]">
+            <div class="text-xs text-gray-500 mb-2">공정 현황</div>
+            <div class="flex items-end justify-center gap-3 mb-1">
               <div>
                 <div id="kpi-stages" class="text-2xl font-bold text-header-navy">0</div>
-                <div class="text-[9px] text-gray-400">전체 공정</div>
+                <div class="text-[10px] text-gray-400">전체 공정</div>
               </div>
               <div class="text-gray-300 text-lg">/</div>
               <div>
                 <div id="kpi-high" class="text-2xl font-bold text-risk-vh">0</div>
-                <div class="text-[9px] text-gray-400">고위험</div>
+                <div class="text-[10px] text-gray-400">고위험</div>
               </div>
             </div>
             <div id="kpi-high-rate" class="text-[10px] text-gray-500">(0%)</div>
           </div>
 
           <!-- KPI 카드: 전체 근로자수 -->
-          <div class="border border-gray-200 rounded-lg p-2 text-center" style="width:189px; height:189px; display:flex; flex-direction:column; justify-content:center;">
-            <div class="text-[10px] text-gray-500 mb-1">투입 인원</div>
+          <div class="border border-gray-200 rounded-lg p-3 text-center flex flex-col justify-center min-h-[120px]">
+            <div class="text-xs text-gray-500 mb-1">투입 인원</div>
             <div id="kpi-workers" class="text-3xl font-bold text-header-navy">0</div>
-            <div class="text-[9px] text-gray-400 mb-2">명</div>
+            <div class="text-[10px] text-gray-400 mb-2">명</div>
             <div class="border-t border-gray-100 pt-1 mt-1">
               <div class="text-[10px] text-gray-500">유해위험요인</div>
               <div class="flex items-baseline justify-center gap-1">
                 <span id="kpi-hazards" class="text-base font-bold text-risk-h">0</span>
-                <span class="text-[9px] text-gray-400">건</span>
+                <span class="text-[10px] text-gray-400">건</span>
               </div>
             </div>
           </div>
 
-          <!-- 미니 차트: 기인물 사고사망 바차트 -->
-          <div class="border border-gray-200 rounded-lg p-2" style="width:189px; height:189px;">
-            <h3 class="text-[9px] font-semibold mb-1 text-center">기인물별 사고사망</h3>
-            <canvas id="chart-hazard-bar" style="width:100%; height:155px;"></canvas>
-          </div>
-
-          <!-- 미니 차트: 등급 분포 (전/후) — 제거됨 -->
-          <div class="border border-gray-200 rounded-lg p-2 hidden" style="width:189px; height:189px;">
-            <h3 class="text-[9px] font-semibold mb-1 text-center">등급 분포 (전/후)</h3>
-            <div class="flex gap-1" style="height:155px;">
-              <div class="flex-1"><canvas id="chart-donut-before"></canvas></div>
-              <div class="flex-1"><canvas id="chart-donut-after"></canvas></div>
-            </div>
-          </div>
-
-          <!-- 미니 차트: 개선 전/후 비교 -->
-          <div class="border border-gray-200 rounded-lg p-2" style="width:189px; height:189px;">
-            <h3 class="text-[9px] font-semibold mb-1 text-center">개선 전/후 비교</h3>
-            <canvas id="chart-vertical-bar" style="width:100%; height:155px;"></canvas>
-          </div>
-
-          <!-- 미니 차트: 공정별 위험요인 -->
-          <div class="border border-gray-200 rounded-lg p-2" style="width:189px; height:189px;">
-            <h3 class="text-[9px] font-semibold mb-1 text-center">공정별 위험요인</h3>
-            <canvas id="chart-horizontal-bar" style="width:100%; height:155px;"></canvas>
-          </div>
-
-          <!-- KPI 카드: 평균 위험도 + 고위험 목록 -->
-          <div id="highRiskPanel" class="border-2 border-red-200 rounded-lg p-2 bg-red-50 overflow-y-auto" style="width:189px; height:189px;">
-            <div class="text-center mb-1">
-              <div class="text-[9px] text-gray-500">평균 위험도</div>
-              <div class="flex items-baseline justify-center gap-1">
-                <span class="text-[9px] text-gray-500">전:</span>
-                <span id="kpi-avg-before" class="text-sm font-bold">0</span>
-                <span class="text-[9px] text-gray-500">후:</span>
-                <span id="kpi-avg-after" class="text-sm font-bold text-blue-600">0</span>
+          <!-- KPI 카드: 평균 위험도 -->
+          <div class="border border-gray-200 rounded-lg p-3 text-center flex flex-col justify-center min-h-[120px]">
+            <div class="text-xs text-gray-500 mb-2">평균 위험도</div>
+            <div class="flex items-baseline justify-center gap-2 mb-1">
+              <div>
+                <span class="text-[10px] text-gray-500">전</span>
+                <span id="kpi-avg-before" class="text-xl font-bold ml-1">0</span>
               </div>
-              <div id="kpi-reduction" class="text-[9px] text-green-600 font-medium">감소율 0%</div>
-            </div>
-            <div class="border-t border-red-200 pt-1">
-              <h3 class="text-[9px] font-bold text-risk-vh mb-1">고위험 공정</h3>
-              <div id="highRiskList" class="space-y-0.5 text-[9px] text-gray-400">
-                데이터 입력 시 표시
+              <span class="text-gray-300">→</span>
+              <div>
+                <span class="text-[10px] text-gray-500">후</span>
+                <span id="kpi-avg-after" class="text-xl font-bold text-blue-600 ml-1">0</span>
               </div>
             </div>
+            <div id="kpi-reduction" class="text-xs text-green-600 font-medium">감소율 0%</div>
           </div>
+
+          <!-- KPI 카드: 고위험 공정 목록 -->
+          <div id="highRiskPanel" class="border-2 border-red-200 rounded-lg p-3 bg-red-50 overflow-y-auto min-h-[120px]">
+            <h3 class="text-xs font-bold text-risk-vh mb-2">고위험 공정</h3>
+            <div id="highRiskList" class="space-y-1 text-xs text-gray-400">
+              데이터 입력 시 표시
+            </div>
+          </div>
+        </div>
+
+        <!-- 미니 차트: 기인물 사고사망 바차트 -->
+        <div class="border border-gray-200 rounded-lg p-3">
+          <h3 class="text-xs font-semibold mb-2 text-center">기인물별 사고사망</h3>
+          <div style="height:200px;"><canvas id="chart-hazard-bar"></canvas></div>
+        </div>
+
+        <!-- 숨겨진 차트 (JS 참조용, 제거됨) -->
+        <div class="hidden">
+          <canvas id="chart-donut-before"></canvas>
+          <canvas id="chart-donut-after"></canvas>
+          <canvas id="chart-vertical-bar"></canvas>
+          <canvas id="chart-horizontal-bar"></canvas>
         </div>
       </section>
 
@@ -1103,15 +1149,16 @@
   </div>
 
   <!-- ===== JavaScript 모듈 ===== -->
-  <script src="js/store.js?v=5"></script>
-  <script src="data/hazards.js?v=5"></script>
-  <script src="data/sif-cases.js?v=5"></script>
-  <script src="data/sample-data.js?v=5"></script>
-  <script src="js/sections.js?v=5"></script>
-  <script src="js/modals.js?v=5"></script>
-  <script src="js/print.js?v=5"></script>
-  <script src="js/wizard.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/store.js?v=7"></script>
+  <script src="data/hazards.js?v=7"></script>
+  <script src="data/sif-cases.js?v=7"></script>
+  <script src="data/sample-data.js?v=7"></script>
+  <script src="js/sections.js?v=7"></script>
+  <script src="js/modals.js?v=7"></script>
+  <script src="js/print.js?v=7"></script>
+  <script src="js/wizard.js?v=7"></script>
+  <script src="js/admin.js?v=7"></script>
+  <script src="js/app.js?v=7"></script>
 
 </body>
 </html>

@@ -218,10 +218,57 @@ const StepWizard = (() => {
     // 현재 단계 검증
     const errors = validateStep(currentStep);
     if (errors.length > 0) {
-      alert('미입력 항목이 있습니다:\n\n' + errors.map(e => '  - ' + e).join('\n'));
+      showValidationPopup(errors);
       return;
     }
     if (currentStep < STEPS.length - 1) goTo(currentStep + 1);
+  }
+
+  /**
+   * 미입력 항목 팝업 표시
+   */
+  function showValidationPopup(errors) {
+    const existing = document.getElementById('validationPopup');
+    if (existing) existing.remove();
+
+    const step = STEPS[currentStep];
+    const popup = document.createElement('div');
+    popup.id = 'validationPopup';
+    popup.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[200] no-print';
+    popup.innerHTML = `
+      <div class="bg-white rounded-xl shadow-2xl w-[480px] max-h-[70vh] overflow-hidden">
+        <div class="p-4 bg-red-600 text-white flex justify-between items-center">
+          <h3 class="font-bold">&#9888; 미입력 항목 안내</h3>
+          <button onclick="document.getElementById('validationPopup').remove()" class="text-white/70 hover:text-white text-xl">&times;</button>
+        </div>
+        <div class="p-5">
+          <p class="text-sm font-medium text-gray-700 mb-3">
+            <strong>Step ${step.num}. ${step.label}</strong>에 미입력된 항목이 있습니다.
+          </p>
+          <p class="text-sm text-gray-500 mb-3">아래 항목을 입력 후 다음 단계로 진행해주세요.</p>
+          <div class="max-h-[300px] overflow-y-auto space-y-1.5">
+            ${errors.map(e => `
+              <div class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                <span class="text-red-400 flex-shrink-0 mt-0.5">&#10148;</span>
+                <span>${e}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="p-4 bg-gray-50 border-t flex justify-end">
+          <button onclick="document.getElementById('validationPopup').remove()"
+            class="px-5 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-medium transition">
+            확인
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(popup);
+
+    // 배경 클릭으로 닫기
+    popup.addEventListener('click', (e) => {
+      if (e.target === popup) popup.remove();
+    });
   }
 
   function prev() {

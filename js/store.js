@@ -17,13 +17,13 @@ const Store = (() => {
     // H7: 작업분류 10개
     workTypes: [
       { id: '일반작업', kind: 'manual', checked: false, auto: false, note: '' },
-      { id: '화기작업', kind: 'manual', checked: false, auto: false, note: '화기감시자 배치 필' },
-      { id: '밀폐작업', kind: 'manual', checked: false, auto: false, note: '산소농도측정 필' },
+      { id: '화기작업', kind: 'auto', checked: false, auto: false, note: '화기감시자 배치 필' },
+      { id: '밀폐작업', kind: 'auto', checked: false, auto: false, note: '산소농도측정 필' },
       { id: '고소작업', kind: 'auto', checked: false, auto: false, note: '' },
       { id: '정전작업', kind: 'auto', checked: false, auto: false, note: '' },
       { id: '굴착작업', kind: 'auto', checked: false, auto: false, note: '' },
       { id: '중장비작업', kind: 'auto', checked: false, auto: false, note: '' },
-      { id: '중량물작업', kind: 'manual', checked: false, auto: false, note: '중량물작업계획서' },
+      { id: '중량물작업', kind: 'auto', checked: false, auto: false, note: '중량물작업계획서' },
       { id: '방사선작업', kind: 'manual', checked: false, auto: false, note: '' },
       { id: '잠수작업', kind: 'manual', checked: false, auto: false, note: '' },
     ],
@@ -278,15 +278,15 @@ const Store = (() => {
           roles.push({ role: '화기감시자', workType: '화기작업', min: 1, exclusive: true, label: '화기감시자 (겸직 금지)' });
           break;
         case '밀폐작업':
-          roles.push({ role: '밀폐감시자', workType: '밀폐작업', min: 1, exclusive: false, label: '밀폐감시자' });
+          roles.push({ role: '밀폐감시자', workType: '밀폐작업', min: 1, exclusive: true, label: '밀폐감시자 (겸직 금지)' });
           break;
         case '굴착작업':
-          roles.push({ role: '굴착_유도자', workType: '굴착작업', min: 1, exclusive: false, label: '유도자 (굴착)' });
-          roles.push({ role: '굴착_신호수', workType: '굴착작업', min: 1, exclusive: false, label: '신호수 (굴착)' });
+          roles.push({ role: '굴착_유도자', workType: '굴착작업', min: 1, exclusive: true, label: '유도자 (굴착·겸직 금지)' });
+          roles.push({ role: '굴착_신호수', workType: '굴착작업', min: 1, exclusive: true, label: '신호수 (굴착·겸직 금지)' });
           break;
         case '중장비작업':
-          roles.push({ role: '중장비_유도자', workType: '중장비작업', min: 1, exclusive: false, label: '유도자 (중장비)' });
-          roles.push({ role: '중장비_신호수', workType: '중장비작업', min: 1, exclusive: false, label: '신호수 (중장비)' });
+          roles.push({ role: '중장비_유도자', workType: '중장비작업', min: 1, exclusive: true, label: '유도자 (중장비·겸직 금지)' });
+          roles.push({ role: '중장비_신호수', workType: '중장비작업', min: 1, exclusive: true, label: '신호수 (중장비·겸직 금지)' });
           break;
         case '중량물작업':
           roles.push({ role: '중량물_작업책임자', workType: '중량물작업', min: 1, exclusive: false, label: '작업책임자 (중량물)' });
@@ -312,7 +312,7 @@ const Store = (() => {
       }
     });
 
-    // 겸직 검증: 한 사람이 여러 역할 → 해당 작업에 최소 2명 이상 배치
+    // 겸직 검증: 감시자·유도자·신호수는 전원 겸직 금지
     const personRoles = {};
     Object.entries(assignments).forEach(([role, indices]) => {
       indices.forEach(idx => {
@@ -321,27 +321,25 @@ const Store = (() => {
       });
     });
 
-    // 화기감시자 겸직 금지 검증
-    const fireWatcher = assignments['화기감시자'] || [];
-    fireWatcher.forEach(idx => {
-      if (personRoles[idx] && personRoles[idx].length > 1) {
-        errors.push({ role: '화기감시자', label: '화기감시자', type: 'exclusive', message: '화기감시자는 겸직이 금지됩니다' });
-      }
-    });
-
-    // 일반 겸직: 최소 2명 배치 필요
-    Object.entries(personRoles).forEach(([idx, roleList]) => {
-      if (roleList.length > 1 && !roleList.includes('화기감시자')) {
-        roleList.forEach(role => {
-          const assigned = assignments[role] || [];
-          if (assigned.length < 2) {
-            const roleDef = roles.find(r => r.role === role);
-            if (roleDef) {
-              errors.push({ role, label: roleDef.label, type: 'dual', message: `${roleDef.label}: 겸직 시 최소 2명 이상 지정 필요` });
-            }
-          }
-        });
-      }
+    // exclusive 역할 겸직 금지 검증 (감시자·유도자·신호수 모두)
+    const exclusiveRoles = roles.filter(r => r.exclusive);
+    exclusiveRoles.forEach(r => {
+      const assigned = assignments[r.role] || [];
+      assigned.forEach(idx => {
+        if (personRoles[idx] && personRoles[idx].length > 1) {
+          const members = state.members;
+          const name = members[idx]?.name || `참여자${idx + 1}`;
+          const otherRoles = personRoles[idx].filter(ro => ro !== r.role);
+          const otherLabels = otherRoles.map(ro => {
+            const def = roles.find(d => d.role === ro);
+            return def ? def.label.replace(/ \(겸직 금지\)| \(.*겸직 금지\)/g, '') : ro;
+          }).join(', ');
+          errors.push({
+            role: r.role, label: r.label, type: 'exclusive',
+            message: `${r.label.replace(/ \(겸직 금지\)| \(.*겸직 금지\)/g, '')} "${name}" — 겸직 금지 (현재 ${otherLabels} 겸직 중)`
+          });
+        }
+      });
     });
 
     // 중복 제거

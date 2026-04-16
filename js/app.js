@@ -23,6 +23,9 @@ const App = (() => {
     // 스텝 위자드 초기화
     StepWizard.init();
 
+    // 샘플 DB 자동 시딩 (최초 1회)
+    _seedSampleDB();
+
     console.log('[App] 위험성평가 · TBM 웹앱 초기화 완료');
   }
 
@@ -254,6 +257,81 @@ const App = (() => {
     a.click();
     URL.revokeObjectURL(url);
     showToast('JSON 파일 다운로드 완료', 'success');
+  }
+
+  // ============ 샘플 DB 자동 시딩 ============
+
+  function _seedSampleDB() {
+    openDB().then(db => {
+      const tx = db.transaction('assessments', 'readonly');
+      const countReq = tx.objectStore('assessments').count();
+      countReq.onsuccess = () => {
+        // DB가 비어있거나 샘플이 아직 없으면 자동 시딩
+        if (countReq.result < SAMPLE_DB.length) {
+          _doSeed(db);
+        }
+      };
+    });
+  }
+
+  function _doSeed(db) {
+    const tx = db.transaction('assessments', 'readwrite');
+    const store = tx.objectStore('assessments');
+
+    SAMPLE_DB.forEach(s => {
+      // 이미 존재하는지 체크
+      const getReq = store.get(s.관리번호);
+      getReq.onsuccess = () => {
+        if (getReq.result) return; // 이미 존재하면 스킵
+
+        const hazards = HAZARD_MASTER.map(h => ({
+          ...h,
+          checked: s.checkedHazards.includes(h.기인물),
+        }));
+
+        const data = {
+          key: s.관리번호,
+          관리번호: s.관리번호,
+          작업명: s.작업명,
+          작업내용: s.작업내용,
+          hazards,
+          workTypes: [
+            { id: '일반작업', kind: 'manual', checked: false, auto: false },
+            { id: '화기작업', kind: 'auto', checked: false, auto: false },
+            { id: '밀폐작업', kind: 'auto', checked: false, auto: false },
+            { id: '고소작업', kind: 'auto', checked: false, auto: false },
+            { id: '정전작업', kind: 'auto', checked: false, auto: false },
+            { id: '굴착작업', kind: 'auto', checked: false, auto: false },
+            { id: '중장비작업', kind: 'auto', checked: false, auto: false },
+            { id: '중량물작업', kind: 'auto', checked: false, auto: false },
+            { id: '방사선작업', kind: 'manual', checked: false, auto: false },
+            { id: '잠수작업', kind: 'manual', checked: false, auto: false },
+          ],
+          overview: s.overview,
+          members: s.members.map(m => ({ ...m, signature: '' })),
+          processes: s.processes.map(p => ({ ...p, hazards: [...(p.hazards || [])] })),
+          rows: s.rows.map(r => ({
+            id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random(),
+            ...r,
+            riskBefore: r.freqBefore * r.sevBefore,
+            riskAfter: r.freqAfter * r.sevAfter,
+            tbmChk: (r.freqBefore * r.sevBefore) >= 8,
+          })),
+          roleAssignments: {},
+          tbm: { onePoint: '', checklist: {}, feedback: ['','','',''], notes: '', safetyGearProvided: false, contractorMessage: { content: '', deliveredAt: '', deliverer: '', signature: '' }, attendeeDetails: {} },
+          heavyLiftPlan: {},
+          heavyEquipmentPlan: {},
+          confinedEntryLog: [],
+          savedAt: new Date().toISOString(),
+        };
+
+        store.put(data);
+      };
+    });
+
+    tx.oncomplete = () => {
+      console.log('[App] 샘플 DB 시딩 완료 (' + SAMPLE_DB.length + '건)');
+    };
   }
 
   // ============ IndexedDB ============

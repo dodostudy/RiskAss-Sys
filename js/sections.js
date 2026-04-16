@@ -219,9 +219,12 @@ const SectionWorkType = (() => {
       color: 'orange',
       title: '화기작업 안전수칙',
       items: [
-        '화기작업감시자 반드시 배치',
-        '화기감시자 겸직 금지 (전담 배치)',
-        '소화기 비치 및 화기작업 표지 부착',
+        '화기감시자 지정 및 배치 (겸직 금지, 전담 배치)',
+        '소화기 배치',
+        'C&E센터 사전 교육 후 안전모 부착',
+        '작업 전 가스농도 측정',
+        '불티비산방지포 설치',
+        '작업 후 불티 확인 잊지마세요!',
       ],
     },
     '밀폐작업': {
@@ -229,10 +232,12 @@ const SectionWorkType = (() => {
       color: 'purple',
       title: '밀폐작업 안전수칙',
       items: [
-        '밀폐작업 감시자 반드시 배치',
-        '작업 전 산소농도 측정 실시',
-        '출입명부 작성 및 관리',
-        '밀폐공간 표지판 부착',
+        '밀폐감시자 지정',
+        'C&E센터 사전교육 후 안전모 부착',
+        '작업 전 산소농도 측정',
+        '출입자명부 기록',
+        '작업허가서 확인',
+        '위험성평가 명부와 일치여부 확인',
       ],
       button: { label: '&#128203; 밀폐작업 출입대장', action: 'ConfinedEntryModal.open()' },
     },
@@ -241,9 +246,13 @@ const SectionWorkType = (() => {
       color: 'amber',
       title: '굴착작업 안전수칙',
       items: [
-        '유도자 반드시 배치',
-        '신호수 반드시 배치',
-        '굴착작업 표지 부착',
+        '신호수, 유도자 지정',
+        'C&E센터 교육 후 안전모 부착',
+        '중장비·중량물 작업계획서 사전 작성',
+      ],
+      buttons: [
+        { label: '&#128679; 중장비 작업계획서 작성', action: 'HeavyEquipmentPlanModal.open()' },
+        { label: '&#128221; 중량물 작업계획서 작성', action: 'HeavyLiftPlanModal.open()' },
       ],
     },
     '중량물작업': {
@@ -262,12 +271,16 @@ const SectionWorkType = (() => {
       color: 'blue',
       title: '중장비작업 안전수칙',
       items: [
-        '중장비 작업계획서 사전 작성 필수',
-        '유도자 · 신호수 반드시 배치',
+        '신호수, 유도자 지정',
+        'C&E센터 교육 후 안전모 부착',
+        '중장비·중량물 작업계획서 사전 작성',
         '운전원 면허 확인',
         '작업반경 내 출입통제 표지 부착',
       ],
-      button: { label: '&#128679; 중장비 작업계획서 작성', action: 'HeavyEquipmentPlanModal.open()' },
+      buttons: [
+        { label: '&#128679; 중장비 작업계획서 작성', action: 'HeavyEquipmentPlanModal.open()' },
+        { label: '&#128221; 중량물 작업계획서 작성', action: 'HeavyLiftPlanModal.open()' },
+      ],
     },
     '고소작업': {
       icon: '&#9888;',
@@ -335,7 +348,16 @@ const SectionWorkType = (() => {
                   </li>
                 `).join('')}
               </ul>
-              ${alert.button ? `
+              ${alert.buttons ? `
+                <div class="mt-2 flex flex-wrap gap-2">
+                  ${alert.buttons.map(btn => `
+                    <button onclick="${btn.action}"
+                      class="px-3 py-1.5 bg-${alert.color}-600 text-white text-xs rounded hover:bg-${alert.color}-700 transition font-medium">
+                      ${btn.label}
+                    </button>
+                  `).join('')}
+                </div>
+              ` : alert.button ? `
                 <button onclick="${alert.button.action}"
                   class="mt-2 px-3 py-1.5 bg-${alert.color}-600 text-white text-xs rounded hover:bg-${alert.color}-700 transition font-medium">
                   ${alert.button.label}
@@ -981,7 +1003,7 @@ const SifPopup = (() => {
     targetRowIndex = rowIndex;
     targetField = field;
     selectedItems.clear();
-    currentTab = field === 'safety' ? 'safety' : (field === 'hazard' ? 'hazards' : 'cases');
+    currentTab = 'cases';
     currentHazardName = '';
 
     const rows = Store.get('rows');
@@ -1226,24 +1248,28 @@ const SifPopup = (() => {
         }
       });
       if (texts.hazards.length > 0) {
-        row.hazard = (row.hazard ? row.hazard + ', ' : '') + texts.hazards.join(', ');
+        const bracketed = '[' + texts.hazards.join(', ') + ']';
+        row.hazard = (row.hazard ? row.hazard + ' ' : '') + bracketed;
       }
       if (texts.safeties.length > 0) {
         const cleaned = texts.safeties.join(' ').replace(/▶/g, ', ').replace(/^,\s*/, '').trim();
-        row.safety = (row.safety ? row.safety + ', ' : '') + cleaned;
+        const bracketed = '[' + cleaned + ']';
+        row.safety = (row.safety ? row.safety + ' ' : '') + bracketed;
       }
     } else if (currentTab === 'hazards') {
       const texts = [];
       selectedItems.forEach(key => {
         if (_textMap[key]) texts.push(_textMap[key].text);
       });
-      row.hazard = (row.hazard ? row.hazard + ', ' : '') + texts.join(', ');
+      const bracketed = '[' + texts.join(', ') + ']';
+      row.hazard = (row.hazard ? row.hazard + ' ' : '') + bracketed;
     } else if (currentTab === 'safety') {
       const texts = [];
       selectedItems.forEach(key => {
         if (_textMap[key]) texts.push(_textMap[key].text);
       });
-      row.safety = (row.safety ? row.safety + ', ' : '') + texts.join(', ');
+      const bracketed = '[' + texts.join(', ') + ']';
+      row.safety = (row.safety ? row.safety + ' ' : '') + bracketed;
     }
 
     Store.set('rows', [...rows]);
@@ -1262,7 +1288,7 @@ const SifPopup = (() => {
 // ⑦ 공정별 위험성 분석 (AL7) + ⑧ 차트 + KPI
 // =============================================
 const SectionAnalysis = (() => {
-  let chartH = null, chartV = null, chartHazardBar = null;
+  let chartHazardBar = null;
 
   function render() {
     const analysis = Store.getStageAnalysis();
@@ -1292,7 +1318,8 @@ const SectionAnalysis = (() => {
     const rows = Store.get('rows');
     const analysis = Store.getStageAnalysis();
     const members = Store.get('members').filter(m => m.name);
-    const totalStages = analysis.length;
+    const processes = Store.get('processes');
+    const totalStages = processes.length;
     const totalHazards = rows.length;
     // 고위험공정: 해당 공정 내 1건이라도 riskBefore >= 8인 행이 있는 공정
     const highStages = analysis.filter(s => s.highCount > 0).length;
@@ -1314,8 +1341,6 @@ const SectionAnalysis = (() => {
   }
 
   function renderCharts() {
-    const analysis = Store.getStageAnalysis();
-
     // 기인물별 사고사망 바차트 (선택된 기인물, 사고건수 내림차순)
     const selectedHazards = Store.getSelectedHazards().sort((a, b) => b.총사고건수 - a.총사고건수);
     const ctxHaz = document.getElementById('chart-hazard-bar');
@@ -1340,111 +1365,33 @@ const SectionAnalysis = (() => {
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { beginAtZero: true, ticks: { font: { size: 7 } } },
-            y: { ticks: { font: { size: 7 } } },
+            x: { beginAtZero: true, ticks: { font: { size: 9 } } },
+            y: { ticks: { font: { size: 9 } } },
           },
         },
       });
     }
-
-    if (analysis.length === 0) return;
-
-    const ctxH = document.getElementById('chart-horizontal-bar');
-    if (chartH) chartH.destroy();
-    chartH = new Chart(ctxH, {
-      type: 'bar',
-      data: {
-        labels: analysis.map(s => s.name),
-        datasets: [
-          { label: '전체', data: analysis.map(s => s.total), backgroundColor: '#BDD7EE', borderRadius: 2 },
-          { label: '고위험', data: analysis.map(s => s.highCount), backgroundColor: '#C00000', borderRadius: 2 },
-        ],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { font: { size: 7 }, boxWidth: 8 } } },
-        scales: {
-          x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 7 } } },
-          y: { ticks: { font: { size: 7 } } },
-        },
-      },
-    });
-
-    const ctxV = document.getElementById('chart-vertical-bar');
-    if (chartV) chartV.destroy();
-    chartV = new Chart(ctxV, {
-      type: 'bar',
-      data: {
-        labels: analysis.map(s => s.name),
-        datasets: [
-          {
-            label: '전',
-            data: analysis.map(s => s.avgBefore),
-            backgroundColor: analysis.map(s =>
-              s.avgBefore >= 12 ? '#C00000' : s.avgBefore >= 8 ? '#E26B0A' : s.avgBefore >= 4 ? '#FFC000' : '#375623'
-            ),
-            borderRadius: 2,
-          },
-          { label: '후', data: analysis.map(s => s.avgAfter), backgroundColor: '#93C5FD', borderRadius: 2 },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { font: { size: 7 }, boxWidth: 8 } } },
-        scales: {
-          y: { beginAtZero: true, max: 20, ticks: { stepSize: 4, font: { size: 7 } } },
-          x: { ticks: { font: { size: 7 } } },
-        },
-      },
-    });
-
-    // 등급분포 도넛차트 제거됨
-  }
-
-  function renderDonut(canvasId, dist, label) {
-    const ctx = document.getElementById(canvasId);
-    const existing = Chart.getChart(ctx);
-    if (existing) existing.destroy();
-    new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['VH', 'H', 'M', 'L'],
-        datasets: [{ data: [dist.VH, dist.H, dist.M, dist.L], backgroundColor: ['#C00000', '#E26B0A', '#FFC000', '#375623'] }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: { display: true, text: `${label}(${dist.total})`, font: { size: 8 } },
-          legend: { position: 'bottom', labels: { font: { size: 7 }, boxWidth: 6, padding: 4 } },
-        },
-      },
-    });
   }
 
   function renderHighRiskPanel() {
     const analysis = Store.getStageAnalysis();
-    const rows = Store.get('rows');
+    const processes = Store.get('processes');
     const highRisk = analysis.filter(s => s.avgBefore >= 8).sort((a, b) => b.avgBefore - a.avgBefore);
     const panel = document.getElementById('highRiskList');
 
     if (highRisk.length === 0) {
-      panel.innerHTML = '<p class="text-[10px] text-gray-400">데이터 입력 시 표시</p>';
+      panel.innerHTML = '<p class="text-xs text-gray-400">데이터 입력 시 표시</p>';
       return;
     }
 
-    const totalStages = analysis.length;
     panel.innerHTML = `
-      <p class="text-[10px] text-gray-600 mb-1">${totalStages}개 중 <strong class="text-risk-vh">${highRisk.length}개</strong> 고위험</p>
+      <p class="text-xs text-gray-600 mb-1">${processes.length}개 공정 중 <strong class="text-risk-vh">${highRisk.length}개</strong> 고위험</p>
       ${highRisk.map(s => {
         return `
-          <div class="p-1.5 bg-white rounded border border-red-200 text-[10px]">
+          <div class="p-1.5 bg-white rounded border border-red-200 text-xs">
             <span class="text-risk-vh font-bold">&#9679;</span>
             <strong>${s.name}</strong>
-            <span class="text-gray-500">avg ${s.avgBefore} / ${s.highCount}건</span>
+            <span class="text-gray-500 ml-1">avg ${s.avgBefore} / ${s.highCount}건</span>
           </div>
         `;
       }).join('')}

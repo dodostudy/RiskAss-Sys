@@ -139,7 +139,7 @@ const PrintManager = (() => {
         `);
       }
 
-      let html = '<div class="print-page" style="padding:0;">';
+      let html = '<div class="print-page-landscape" style="padding:0;">';
 
       if (page === 0) {
         // 첫 페이지: 결재란 + 작업개요 전체
@@ -295,7 +295,7 @@ const PrintManager = (() => {
 
       const pageNumGlobal = pages_수시위험성평가_count + page + 1;
       pages.push(`
-        <div class="print-page">
+        <div class="print-page-landscape">
           ${headerHTML()}
           <tbody>
             ${rowsHTML}
@@ -337,7 +337,7 @@ const PrintManager = (() => {
     }
 
     return [`
-      <div class="print-page">
+      <div class="print-page-landscape">
         <div style="${S.title}">위험성평가 실시결과 확인</div>
 
         <div style="border:2px solid #000; padding:6px 10px; margin-bottom:8px; font-size:8.5pt; line-height:1.6;">
@@ -449,7 +449,7 @@ const PrintManager = (() => {
     })() : '';
 
     return `
-      <div class="print-page-landscape">
+      <div class="print-page">
         ${결재란TBM()}
         <div style="${S.title}">TBM 일지</div>
 
@@ -600,7 +600,7 @@ const PrintManager = (() => {
     const tbm = Store.get('tbm');
 
     return `
-      <div class="print-page-landscape">
+      <div class="print-page">
         <div style="${S.subtitle}; font-weight:bold; margin:0 0 2px;">▣ 작업 종료 후 피드백 미팅</div>
         <table style="${S.table}; margin-bottom:6px;">
           <tr><td style="${S.td} height:18px;">○</td></tr>
