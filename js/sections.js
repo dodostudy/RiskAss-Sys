@@ -388,27 +388,42 @@ const SectionMembers = (() => {
     const members = Store.get('members');
     const tbody = document.getElementById('memberTableBody');
     if (members.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-400">참여자를 추가해주세요.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-gray-400">참여자를 추가해주세요. (근로자 DB에서 추가 또는 직접 입력)</td></tr>';
     } else {
-      tbody.innerHTML = members.map((m, i) => `
-        <tr class="border-b border-gray-100 hover:bg-gray-50">
-          <td class="px-3 py-1.5 text-center text-gray-400">${i + 1}</td>
-          <td class="px-3 py-1.5">
-            <input type="text" value="${m.affiliation || ''}" placeholder="소속"
-              class="input-yellow w-full border border-gray-300 rounded px-2 py-1 text-sm"
-              onchange="SectionMembers.update(${i}, 'affiliation', this.value)">
-          </td>
-          <td class="px-3 py-1.5">
-            <input type="text" value="${m.name || ''}" placeholder="성명"
-              class="input-yellow w-full border border-gray-300 rounded px-2 py-1 text-sm"
-              onchange="SectionMembers.update(${i}, 'name', this.value)">
-          </td>
-          <td class="px-3 py-1.5 text-center">
-            <button onclick="SectionMembers.remove(${i})"
-              class="text-red-400 hover:text-red-600 text-xs">&#10005;</button>
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = members.map((m, i) => {
+        const worker = findWorkerByName(m.name);
+        const badges = worker ? getWorkerEducationBadges(worker, true) : '';
+        const isRegistered = !!worker;
+        return `
+          <tr class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="px-2 py-1.5 text-center text-gray-400 text-xs">${i + 1}</td>
+            <td class="px-2 py-1.5">
+              <input type="text" value="${m.affiliation || ''}" placeholder="소속"
+                class="input-yellow w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                onchange="SectionMembers.update(${i}, 'affiliation', this.value)">
+            </td>
+            <td class="px-2 py-1.5">
+              <div class="flex items-center gap-1">
+                <input type="text" value="${m.name || ''}" placeholder="성명"
+                  class="input-yellow flex-1 border border-gray-300 rounded px-2 py-1 text-sm"
+                  onchange="SectionMembers.update(${i}, 'name', this.value)">
+                ${isRegistered
+                  ? '<span class="px-1 py-0.5 bg-green-100 text-green-700 text-[8px] rounded flex-shrink-0" title="근로자DB 등록됨">DB</span>'
+                  : '<span class="px-1 py-0.5 bg-gray-100 text-gray-400 text-[8px] rounded flex-shrink-0" title="근로자DB 미등록">미등록</span>'}
+              </div>
+            </td>
+            <td class="px-2 py-1.5">
+              ${isRegistered
+                ? `<div class="flex flex-wrap gap-0.5">${badges}</div>`
+                : '<span class="text-[9px] text-gray-400">DB 미등록</span>'}
+            </td>
+            <td class="px-2 py-1.5 text-center">
+              <button onclick="SectionMembers.remove(${i})"
+                class="text-red-400 hover:text-red-600 text-xs">&#10005;</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
     document.getElementById('membersResult').textContent = Store.getMembersText() || '(없음)';
     document.getElementById('ov-members').value = Store.getMembersText();
@@ -452,6 +467,8 @@ const SectionMembers = (() => {
                 ${members.map((m, mi) => {
                   const realIdx = Store.get('members').indexOf(m);
                   const isAssigned = assigned.includes(realIdx);
+                  const worker = findWorkerByName(m.name);
+                  const eduCheck = checkWorkerEduForRole(worker, r.role);
                   return `
                     <label class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-white/50 ${isAssigned ? 'bg-white ring-1 ring-' + color + '-400' : ''}">
                       <input type="checkbox" ${isAssigned ? 'checked' : ''}
@@ -459,6 +476,11 @@ const SectionMembers = (() => {
                         class="w-3.5 h-3.5 accent-${color}-600">
                       <span class="text-xs">${m.name}</span>
                       <span class="text-[10px] text-gray-400">${m.affiliation || ''}</span>
+                      ${isAssigned && !eduCheck.ok
+                        ? '<span class="text-[8px] px-1 py-0.5 bg-red-100 text-red-600 rounded" title="' + eduCheck.missing.join(', ') + ' 미이수">&#9888; 교육미이수</span>'
+                        : isAssigned && eduCheck.ok
+                        ? '<span class="text-[8px] px-1 py-0.5 bg-green-100 text-green-600 rounded">&#10004; 교육완료</span>'
+                        : ''}
                     </label>
                   `;
                 }).join('')}
@@ -528,6 +550,108 @@ const SectionMembers = (() => {
     Store.set('roleAssignments', { ...assignments });
   }
 
+  function openWorkerPicker() {
+    const existing = document.getElementById('workerPickerModal');
+    if (existing) existing.remove();
+
+    const currentMembers = Store.get('members').map(m => m.name);
+    const workTypes = Store.classifyWorkTypes().filter(t => t.result === '해당').map(t => t.id);
+
+    const modal = document.createElement('div');
+    modal.id = 'workerPickerModal';
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[200] no-print';
+    modal.innerHTML = `
+      <div class="bg-white rounded-xl shadow-2xl flex flex-col" style="width:95vw; max-width:900px; max-height:85vh;">
+        <div class="p-4 bg-green-700 text-white flex justify-between items-center flex-shrink-0">
+          <h3 class="font-bold">&#128101; 근로자 DB에서 참여자 추가</h3>
+          <button onclick="document.getElementById('workerPickerModal').remove()" class="text-white/70 hover:text-white text-xl">&times;</button>
+        </div>
+        <div class="p-3 bg-green-50 border-b flex items-center gap-2 flex-shrink-0 flex-wrap">
+          <input type="text" id="workerPickerSearch" placeholder="이름/소속 검색..."
+            class="border rounded px-3 py-1.5 text-sm w-40" oninput="SectionMembers._filterWorkerPicker(this.value)">
+          <select id="workerPickerDept" class="border rounded px-2 py-1.5 text-sm" onchange="SectionMembers._filterWorkerPicker()">
+            <option value="">전체 부서</option>
+            ${[...new Set(WORKER_DB.map(w => w.affiliation))].map(d => `<option value="${d}">${d}</option>`).join('')}
+          </select>
+          ${workTypes.length > 0 ? `<span class="text-xs text-green-700 ml-2">현재 작업분류: ${workTypes.map(w=>'<strong>'+w+'</strong>').join(', ')}</span>` : ''}
+        </div>
+        <div class="flex-1 overflow-y-auto p-3">
+          <table class="w-full text-xs border-collapse">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="px-2 py-2 border text-center w-8">선택</th>
+                <th class="px-2 py-2 border text-left">성명</th>
+                <th class="px-2 py-2 border text-left">소속</th>
+                <th class="px-2 py-2 border text-center">직위</th>
+                <th class="px-2 py-2 border text-left">교육이수 현황</th>
+              </tr>
+            </thead>
+            <tbody id="workerPickerBody">
+              ${WORKER_DB.map(w => {
+                const alreadyAdded = currentMembers.includes(w.name);
+                const badges = getWorkerEducationBadges(w, false);
+                return `
+                  <tr class="border-b hover:bg-green-50 worker-picker-row ${alreadyAdded ? 'bg-gray-50 opacity-50' : ''}" data-name="${w.name}" data-dept="${w.affiliation}">
+                    <td class="px-2 py-1.5 border text-center">
+                      <input type="checkbox" class="worker-pick-cb w-4 h-4" data-id="${w.id}" ${alreadyAdded ? 'disabled checked' : ''}>
+                    </td>
+                    <td class="px-2 py-1.5 border font-medium">${w.name} ${alreadyAdded ? '<span class="text-[9px] text-gray-400">(추가됨)</span>' : ''}</td>
+                    <td class="px-2 py-1.5 border">${w.affiliation}</td>
+                    <td class="px-2 py-1.5 border text-center">${w.position || ''}</td>
+                    <td class="px-2 py-1.5 border"><div class="flex flex-wrap gap-0.5">${badges}</div></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="p-4 bg-gray-50 border-t flex justify-between items-center flex-shrink-0">
+          <span id="workerPickerCount" class="text-xs text-gray-500">0명 선택</span>
+          <div class="flex gap-2">
+            <button onclick="document.getElementById('workerPickerModal').remove()" class="px-4 py-2 text-sm border rounded-lg hover:bg-gray-100">취소</button>
+            <button onclick="SectionMembers._applyWorkerPick()" class="px-5 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">선택 추가</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    // 선택 카운트 갱신
+    modal.addEventListener('change', () => {
+      const count = modal.querySelectorAll('.worker-pick-cb:checked:not(:disabled)').length;
+      document.getElementById('workerPickerCount').textContent = count + '명 선택';
+    });
+  }
+
+  function _filterWorkerPicker(searchVal) {
+    const search = (searchVal || document.getElementById('workerPickerSearch')?.value || '').toLowerCase();
+    const dept = document.getElementById('workerPickerDept')?.value || '';
+    document.querySelectorAll('.worker-picker-row').forEach(row => {
+      const matchSearch = !search || row.dataset.name.toLowerCase().includes(search) || row.dataset.dept.toLowerCase().includes(search);
+      const matchDept = !dept || row.dataset.dept === dept;
+      row.style.display = (matchSearch && matchDept) ? '' : 'none';
+    });
+  }
+
+  function _applyWorkerPick() {
+    const checks = document.querySelectorAll('.worker-pick-cb:checked:not(:disabled)');
+    if (checks.length === 0) {
+      document.getElementById('workerPickerModal').remove();
+      return;
+    }
+    const members = Store.get('members');
+    checks.forEach(cb => {
+      const w = WORKER_DB.find(x => x.id === cb.dataset.id);
+      if (w && !members.some(m => m.name === w.name)) {
+        members.push({ affiliation: w.affiliation, name: w.name, signature: '' });
+      }
+    });
+    Store.set('members', [...members]);
+    document.getElementById('workerPickerModal').remove();
+    App.showToast(`${checks.length}명 추가 완료`, 'success');
+  }
+
   function addRow() {
     const members = Store.get('members');
     if (members.length >= 50) return alert('참여자는 최대 50명까지 추가할 수 있습니다.');
@@ -555,7 +679,7 @@ const SectionMembers = (() => {
     Store.set('members', [...members]);
   }
 
-  return { render, addRow, update, remove, toggleRole };
+  return { render, addRow, update, remove, toggleRole, openWorkerPicker, _filterWorkerPicker, _applyWorkerPick };
 })();
 
 

@@ -99,6 +99,9 @@ const AdminPanel = (() => {
           <button onclick="AdminPanel._switchTab('sif')" class="admin-tab px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="sif">
             &#128680; SIF 사고사례 (${SIF_CASES.length}건)
           </button>
+          <button onclick="AdminPanel._switchTab('workers')" class="admin-tab px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="workers">
+            &#128101; 근로자 DB (${WORKER_DB.length}명)
+          </button>
           <button onclick="AdminPanel._switchTab('merge')" class="admin-tab px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap" data-tab="merge">
             &#128279; 기인물-SIF 연계
           </button>
@@ -139,6 +142,7 @@ const AdminPanel = (() => {
       case 'assessments': renderAssessments(content); break;
       case 'hazards': renderHazards(content); break;
       case 'sif': renderSifCases(content); break;
+      case 'workers': renderWorkers(content); break;
       case 'merge': renderMerge(content); break;
     }
   }
@@ -868,6 +872,81 @@ const AdminPanel = (() => {
     });
   }
 
+  // ========== 탭: 근로자 DB ==========
+
+  function renderWorkers(container) {
+    container.innerHTML = `
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h4 class="font-bold text-header-navy">근로자 DB · 교육이수 현황 (${WORKER_DB.length}명)</h4>
+        <div class="flex items-center gap-2">
+          <input type="text" id="adminWorkerSearch" placeholder="이름/소속 검색..."
+            class="border rounded-lg px-3 py-1.5 text-sm w-40" oninput="AdminPanel._filterWorkerTable(this.value)">
+          <select id="adminWorkerDept" class="border rounded-lg px-3 py-1.5 text-sm" onchange="AdminPanel._filterWorkerTable()">
+            <option value="">전체 부서</option>
+            ${[...new Set(WORKER_DB.map(w => w.affiliation))].map(d => `<option value="${d}">${d}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse border border-gray-300">
+          <thead class="bg-header-green-dark sticky top-0">
+            <tr>
+              <th class="px-2 py-2 border border-gray-300 w-10">ID</th>
+              <th class="px-2 py-2 border border-gray-300 text-left">성명</th>
+              <th class="px-2 py-2 border border-gray-300 text-left">소속</th>
+              <th class="px-2 py-2 border border-gray-300 text-center">직위</th>
+              ${EDUCATION_TYPES.map(et => `
+                <th class="px-1 py-2 border border-gray-300 text-center text-[9px] whitespace-nowrap">${et.label}</th>
+              `).join('')}
+            </tr>
+          </thead>
+          <tbody id="adminWorkerBody">
+            ${WORKER_DB.map(w => `
+              <tr class="border-b hover:bg-blue-50 admin-worker-row" data-name="${w.name}" data-dept="${w.affiliation}">
+                <td class="px-2 py-1.5 border border-gray-300 text-center font-mono text-[10px]">${w.id}</td>
+                <td class="px-2 py-1.5 border border-gray-300 font-medium">${w.name}</td>
+                <td class="px-2 py-1.5 border border-gray-300">${w.affiliation}</td>
+                <td class="px-2 py-1.5 border border-gray-300 text-center">${w.position || ''}</td>
+                ${EDUCATION_TYPES.map(et => {
+                  const date = w.education[et.id];
+                  return `<td class="px-1 py-1.5 border border-gray-300 text-center ${date ? 'bg-green-50' : 'bg-red-50'}">
+                    ${date
+                      ? `<span class="text-green-700 font-bold text-[10px]">&#10004;</span><br><span class="text-[8px] text-gray-400">${date.slice(5)}</span>`
+                      : '<span class="text-red-300 text-[10px]">&#10007;</span>'}
+                  </td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <!-- 교육 통계 요약 -->
+      <div class="mt-4 grid grid-cols-3 md:grid-cols-5 gap-2">
+        ${EDUCATION_TYPES.map(et => {
+          const completed = WORKER_DB.filter(w => w.education[et.id]).length;
+          const rate = (completed / WORKER_DB.length * 100).toFixed(0);
+          return `
+            <div class="p-2 border rounded text-center text-xs">
+              <div class="font-bold text-[10px] mb-1">${et.label}</div>
+              <div class="text-lg font-bold ${+rate >= 80 ? 'text-green-600' : +rate >= 50 ? 'text-orange-500' : 'text-red-500'}">${rate}%</div>
+              <div class="text-[9px] text-gray-400">${completed}/${WORKER_DB.length}명</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function _filterWorkerTable(searchVal) {
+    const search = (searchVal || document.getElementById('adminWorkerSearch')?.value || '').toLowerCase();
+    const dept = document.getElementById('adminWorkerDept')?.value || '';
+    document.querySelectorAll('.admin-worker-row').forEach(row => {
+      const matchSearch = !search || row.dataset.name.toLowerCase().includes(search) || row.dataset.dept.toLowerCase().includes(search);
+      const matchDept = !dept || row.dataset.dept === dept;
+      row.style.display = (matchSearch && matchDept) ? '' : 'none';
+    });
+  }
+
   // ========== 탭4: 기인물-SIF 연계 매트릭스 ==========
 
   function renderMerge(container) {
@@ -994,6 +1073,6 @@ const AdminPanel = (() => {
     _viewDetail, _loadToEditor, _deleteOne, _deleteSelected,
     _exportOne, _exportAllJSON, _importJSON, _handleImport,
     _filterHazardTable, _showHazardSif,
-    _filterSifTable,
+    _filterSifTable, _filterWorkerTable,
   };
 })();

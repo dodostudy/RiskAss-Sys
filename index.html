@@ -325,18 +325,24 @@
             Step 3. 참여자 명단
             <span class="text-xs font-normal text-gray-400 ml-2">H20 (최대 50명)</span>
           </h2>
-          <button onclick="SectionMembers.addRow()" class="text-xs px-3 py-1.5 bg-header-navy text-white rounded hover:bg-blue-900 transition">
-            + 참여자 추가
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="SectionMembers.openWorkerPicker()" class="text-xs px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition">
+              &#128101; 근로자 DB에서 추가
+            </button>
+            <button onclick="SectionMembers.addRow()" class="text-xs px-3 py-1.5 bg-header-navy text-white rounded hover:bg-blue-900 transition">
+              + 직접 추가
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm border-collapse">
             <thead class="bg-header-green-dark">
               <tr>
-                <th class="px-3 py-2 text-center w-10">순번</th>
-                <th class="px-3 py-2 text-left">소속</th>
-                <th class="px-3 py-2 text-left">성명</th>
-                <th class="px-3 py-2 text-center w-16">삭제</th>
+                <th class="px-2 py-2 text-center w-8">순번</th>
+                <th class="px-2 py-2 text-left">소속</th>
+                <th class="px-2 py-2 text-left">성명</th>
+                <th class="px-2 py-2 text-left">교육이수 현황</th>
+                <th class="px-2 py-2 text-center w-12">삭제</th>
               </tr>
             </thead>
             <tbody id="memberTableBody">
@@ -1149,16 +1155,17 @@
   </div>
 
   <!-- ===== JavaScript 모듈 ===== -->
-  <script src="js/store.js?v=7"></script>
-  <script src="data/hazards.js?v=7"></script>
-  <script src="data/sif-cases.js?v=7"></script>
-  <script src="data/sample-data.js?v=7"></script>
-  <script src="js/sections.js?v=7"></script>
-  <script src="js/modals.js?v=7"></script>
-  <script src="js/print.js?v=7"></script>
-  <script src="js/wizard.js?v=7"></script>
-  <script src="js/admin.js?v=7"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/store.js?v=8"></script>
+  <script src="data/hazards.js?v=8"></script>
+  <script src="data/sif-cases.js?v=8"></script>
+  <script src="data/workers.js?v=8"></script>
+  <script src="data/sample-data.js?v=8"></script>
+  <script src="js/sections.js?v=8"></script>
+  <script src="js/modals.js?v=8"></script>
+  <script src="js/print.js?v=8"></script>
+  <script src="js/wizard.js?v=8"></script>
+  <script src="js/admin.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
 
 </body>
 </html>
