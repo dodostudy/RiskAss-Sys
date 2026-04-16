@@ -22,54 +22,74 @@ const EDUCATION_TYPES = [
 const WORKER_DB = [
   // === 전기계전부 ===
   { id:'W001', name:'김안전', affiliation:'전기계전부', position:'대리', phone:'010-1111-0001',
+    health:{ status:'적합', date:'2025-01-15', supervisor:'이전기', note:'' },
     education:{ construction:'2025-03-01', ce_center:'2025-02-15', guide_signal:null, confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:'2025-01-10' }},
   { id:'W002', name:'이이경', affiliation:'전기계전부', position:'사원', phone:'010-1111-0002',
+    health:{ status:'적합', date:'2025-01-15', supervisor:'이전기', note:'' },
     education:{ construction:'2025-03-01', ce_center:'2025-02-15', guide_signal:null, confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:'2025-03-01' }},
   { id:'W003', name:'박영수', affiliation:'전기계전부', position:'주임', phone:'010-1111-0003',
+    health:{ status:'유소견', date:'2025-01-15', supervisor:'이전기', note:'고혈압(경계), 고소작업 제한' },
     education:{ construction:'2025-01-15', ce_center:'2025-04-01', guide_signal:null, confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:'2025-01-15' }},
   { id:'W004', name:'이전기', affiliation:'전기계전부', position:'과장', phone:'010-1111-0004',
+    health:{ status:'적합', date:'2025-02-01', supervisor:'', note:'' },
     education:{ construction:'2025-02-01', ce_center:'2025-03-10', guide_signal:null, confined_watcher:null, fire_watcher:'2025-02-01', special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:'2025-02-01' }},
   { id:'W005', name:'박변압', affiliation:'전기계전부', position:'사원', phone:'010-1111-0005',
+    health:{ status:'적합', date:'2025-03-15', supervisor:'이전기', note:'' },
     education:{ construction:'2025-03-15', ce_center:'2025-03-15', guide_signal:null, confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:'2025-03-15' }},
 
   // === 기계정비부 ===
   { id:'W006', name:'박정비', affiliation:'기계정비부', position:'과장', phone:'010-2222-0001',
+    health:{ status:'적합', date:'2025-01-10', supervisor:'', note:'' },
     education:{ construction:'2025-01-10', ce_center:'2025-01-10', guide_signal:'2024-11-01', confined_watcher:'2024-12-01', fire_watcher:'2025-01-10', special_excavator:null, special_heavylift:'2025-01-10', special_heavyeq:'2025-01-10', special_electric:null }},
   { id:'W007', name:'김터빈', affiliation:'기계정비부', position:'대리', phone:'010-2222-0002',
+    health:{ status:'적합', date:'2025-02-01', supervisor:'박정비', note:'' },
     education:{ construction:'2025-02-01', ce_center:'2025-02-01', guide_signal:null, confined_watcher:'2025-02-01', fire_watcher:'2025-02-01', special_excavator:null, special_heavylift:'2025-02-01', special_heavyeq:null, special_electric:null }},
   { id:'W008', name:'이점검', affiliation:'기계정비부', position:'사원', phone:'010-2222-0003',
+    health:{ status:'유소견', date:'2025-03-01', supervisor:'박정비', note:'청력저하(좌), 소음작업 주의' },
     education:{ construction:'2025-03-01', ce_center:'2025-03-01', guide_signal:null, confined_watcher:null, fire_watcher:'2025-03-01', special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
   { id:'W009', name:'김로터', affiliation:'기계정비부', position:'대리', phone:'010-2222-0004',
+    health:{ status:'적합', date:'2025-01-15', supervisor:'박정비', note:'' },
     education:{ construction:'2025-01-15', ce_center:'2025-01-15', guide_signal:'2025-01-15', confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:'2025-01-15', special_heavyeq:'2025-01-15', special_electric:null }},
   { id:'W010', name:'이용접', affiliation:'기계정비부', position:'주임', phone:'010-2222-0005',
+    health:{ status:'적합', date:'2025-02-15', supervisor:'박정비', note:'' },
     education:{ construction:'2025-02-15', ce_center:'2025-02-15', guide_signal:null, confined_watcher:'2025-02-15', fire_watcher:'2025-02-15', special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
   { id:'W011', name:'최냉각', affiliation:'기계정비부', position:'사원', phone:'010-2222-0006',
+    health:{ status:'미검진', date:null, supervisor:'박정비', note:'신규입사, 검진 예정' },
     education:{ construction:'2025-04-01', ce_center:'2025-04-01', guide_signal:null, confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
 
   // === 토건부 ===
   { id:'W012', name:'김굴착', affiliation:'토건부', position:'대리', phone:'010-3333-0001',
+    health:{ status:'적합', date:'2025-01-05', supervisor:'', note:'' },
     education:{ construction:'2025-01-05', ce_center:'2025-01-05', guide_signal:'2025-01-05', confined_watcher:null, fire_watcher:null, special_excavator:'2025-01-05', special_heavylift:null, special_heavyeq:'2025-01-05', special_electric:null }},
   { id:'W013', name:'이토목', affiliation:'토건부', position:'사원', phone:'010-3333-0002',
+    health:{ status:'적합', date:'2025-03-01', supervisor:'김굴착', note:'' },
     education:{ construction:'2025-03-01', ce_center:'2025-03-01', guide_signal:'2025-03-01', confined_watcher:null, fire_watcher:null, special_excavator:'2025-03-01', special_heavylift:null, special_heavyeq:'2025-03-01', special_electric:null }},
 
   // === 화학부 ===
   { id:'W014', name:'박화학', affiliation:'화학부', position:'과장', phone:'010-4444-0001',
+    health:{ status:'적합', date:'2025-02-01', supervisor:'', note:'' },
     education:{ construction:'2025-02-01', ce_center:'2025-02-01', guide_signal:null, confined_watcher:'2025-02-01', fire_watcher:'2025-02-01', special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
   { id:'W015', name:'김분석', affiliation:'화학부', position:'사원', phone:'010-4444-0002',
+    health:{ status:'유소견', date:'2025-04-01', supervisor:'박화학', note:'피부질환, 화학물질 취급 주의' },
     education:{ construction:'2025-04-01', ce_center:'2025-04-01', guide_signal:null, confined_watcher:'2025-04-01', fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
 
   // === 안전환경부 ===
   { id:'W016', name:'강안전', affiliation:'안전환경부', position:'과장', phone:'010-5555-0001',
+    health:{ status:'적합', date:'2025-01-01', supervisor:'', note:'' },
     education:{ construction:'2025-01-01', ce_center:'2025-01-01', guide_signal:'2025-01-01', confined_watcher:'2025-01-01', fire_watcher:'2025-01-01', special_excavator:'2025-01-01', special_heavylift:'2025-01-01', special_heavyeq:'2025-01-01', special_electric:'2025-01-01' }},
   { id:'W017', name:'한감독', affiliation:'안전환경부', position:'대리', phone:'010-5555-0002',
+    health:{ status:'적합', date:'2025-02-01', supervisor:'강안전', note:'' },
     education:{ construction:'2025-02-01', ce_center:'2025-02-01', guide_signal:'2025-02-01', confined_watcher:'2025-02-01', fire_watcher:'2025-02-01', special_excavator:null, special_heavylift:null, special_heavyeq:'2025-02-01', special_electric:'2025-02-01' }},
   { id:'W018', name:'정감시', affiliation:'안전환경부', position:'주임', phone:'010-5555-0003',
+    health:{ status:'적합', date:'2025-03-01', supervisor:'강안전', note:'' },
     education:{ construction:'2025-03-01', ce_center:'2025-03-01', guide_signal:null, confined_watcher:'2025-03-01', fire_watcher:'2025-03-01', special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
 
   // === 협력사 ===
   { id:'W019', name:'최기술', affiliation:'협력사', position:'반장', phone:'010-6666-0001',
+    health:{ status:'적합', date:'2025-03-10', supervisor:'김현장(협력사)', note:'' },
     education:{ construction:'2025-03-10', ce_center:'2025-03-10', guide_signal:'2025-03-10', confined_watcher:null, fire_watcher:'2025-03-10', special_excavator:null, special_heavylift:'2025-03-10', special_heavyeq:'2025-03-10', special_electric:null }},
   { id:'W020', name:'정현장', affiliation:'협력사', position:'기사', phone:'010-6666-0002',
+    health:{ status:'적합', date:'2025-04-01', supervisor:'김현장(협력사)', note:'' },
     education:{ construction:'2025-04-01', ce_center:'2025-04-01', guide_signal:null, confined_watcher:null, fire_watcher:null, special_excavator:null, special_heavylift:null, special_heavyeq:null, special_electric:null }},
 ];
 
@@ -78,12 +98,22 @@ const WORKER_DB = [
  */
 function getWorkerEducationBadges(worker, compact) {
   if (!worker || !worker.education) return '';
-  return EDUCATION_TYPES.map(et => {
+  let badges = EDUCATION_TYPES.map(et => {
     const date = worker.education[et.id];
     const done = !!date;
     if (compact && !done) return '';
     return `<span class="px-1 py-0.5 ${done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'} text-[8px] rounded" title="${et.label}${date ? ' ('+date+')' : ' 미이수'}">${compact ? et.label.replace('특별교육','특') : et.label}${done ? '&#10004;' : ''}</span>`;
   }).filter(Boolean).join(' ');
+  // 유소견 배지
+  if (worker.health) {
+    const h = worker.health;
+    if (h.status === '유소견') {
+      badges = `<span class="px-1 py-0.5 bg-orange-100 text-orange-700 text-[8px] rounded font-bold" title="유소견: ${h.note || ''}&#10;검진일: ${h.date || '-'}&#10;확인자: ${h.supervisor || '-'}">&#9888;유소견</span> ` + badges;
+    } else if (h.status === '미검진') {
+      badges = `<span class="px-1 py-0.5 bg-red-100 text-red-600 text-[8px] rounded font-bold" title="건강검진 미실시">&#9888;미검진</span> ` + badges;
+    }
+  }
+  return badges;
 }
 
 /**

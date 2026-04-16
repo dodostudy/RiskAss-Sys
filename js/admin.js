@@ -895,18 +895,31 @@ const AdminPanel = (() => {
               <th class="px-2 py-2 border border-gray-300 text-left">성명</th>
               <th class="px-2 py-2 border border-gray-300 text-left">소속</th>
               <th class="px-2 py-2 border border-gray-300 text-center">직위</th>
+              <th class="px-1 py-2 border border-gray-300 text-center text-[9px] whitespace-nowrap bg-orange-50">유소견</th>
+              <th class="px-1 py-2 border border-gray-300 text-center text-[9px] whitespace-nowrap bg-orange-50">관리감독자<br>확인</th>
               ${EDUCATION_TYPES.map(et => `
                 <th class="px-1 py-2 border border-gray-300 text-center text-[9px] whitespace-nowrap">${et.label}</th>
               `).join('')}
             </tr>
           </thead>
           <tbody id="adminWorkerBody">
-            ${WORKER_DB.map(w => `
+            ${WORKER_DB.map(w => {
+              const h = w.health || {};
+              const healthColor = h.status === '적합' ? 'bg-green-50' : h.status === '유소견' ? 'bg-orange-50' : 'bg-red-50';
+              const healthIcon = h.status === '적합' ? '<span class="text-green-600 text-[10px]">&#10004; 적합</span>'
+                : h.status === '유소견' ? `<span class="text-orange-600 font-bold text-[10px]">&#9888; 유소견</span>${h.note ? '<br><span class="text-[8px] text-orange-500">' + h.note + '</span>' : ''}`
+                : '<span class="text-red-500 text-[10px]">&#10007; 미검진</span>';
+              const supervisorText = h.supervisor
+                ? `<span class="text-green-600 text-[10px]">&#10004;</span><br><span class="text-[8px] text-gray-500">${h.supervisor}</span>${h.date ? '<br><span class="text-[7px] text-gray-400">' + h.date + '</span>' : ''}`
+                : '<span class="text-gray-300 text-[10px]">—</span>';
+              return `
               <tr class="border-b hover:bg-blue-50 admin-worker-row" data-name="${w.name}" data-dept="${w.affiliation}">
                 <td class="px-2 py-1.5 border border-gray-300 text-center font-mono text-[10px]">${w.id}</td>
                 <td class="px-2 py-1.5 border border-gray-300 font-medium">${w.name}</td>
                 <td class="px-2 py-1.5 border border-gray-300">${w.affiliation}</td>
                 <td class="px-2 py-1.5 border border-gray-300 text-center">${w.position || ''}</td>
+                <td class="px-1 py-1.5 border border-gray-300 text-center ${healthColor}">${healthIcon}</td>
+                <td class="px-1 py-1.5 border border-gray-300 text-center">${supervisorText}</td>
                 ${EDUCATION_TYPES.map(et => {
                   const date = w.education[et.id];
                   return `<td class="px-1 py-1.5 border border-gray-300 text-center ${date ? 'bg-green-50' : 'bg-red-50'}">
@@ -916,7 +929,7 @@ const AdminPanel = (() => {
                   </td>`;
                 }).join('')}
               </tr>
-            `).join('')}
+            `;}).join('')}
           </tbody>
         </table>
       </div>
